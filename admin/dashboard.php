@@ -1,3 +1,12 @@
+<?php
+session_start();
+// Kick them out if they aren't logged in OR if they aren't an Admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
+    header("Location: ../index.php");
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
