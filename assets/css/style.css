@@ -204,3 +204,57 @@ body {
     padding: 1rem 1.5rem;
     border-bottom-color: rgba(0,0,0,0.03);
 }
+
+
+:root {
+    /* Define your custom theme colors here */
+    --ccs-primary: #1a6443; 
+    --ccs-primary-hover: #184f37; /* Slightly darker for button hovers */
+    --ccs-darkest: #12281c;
+}
+
+/* 1. Override the Bootstrap active navigation pill */
+.nav-pills .nav-link.active, 
+.nav-pills .show > .nav-link {
+    background-color: var(--ccs-primary) !important;
+    color: white !important;
+}
+
+/* 2. Change the default active link text color (if clicked) */
+.nav-pills .nav-link {
+    color: var(--ccs-darkest);
+}
+
+/* 3. Override Bootstrap's primary background (for your status badges) */
+.bg-primary {
+    background-color: var(--ccs-primary) !important;
+}
+
+.text-primary {
+    color: var(--ccs-primary) !important;
+}
+
+/* 4. Override primary buttons (for modals, save buttons, etc.) */
+.btn-primary {
+    background-color: var(--ccs-primary) !important;
+    border-color: var(--ccs-primary) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: var(--ccs-primary-hover) !important;
+    border-color: var(--ccs-primary-hover) !important;
+}
+
+/* 5. Custom styling for your specific approve button */
+.btn-custom {
+    background-color: var(--ccs-primary);
+    color: white;
+    border: none;
+}
+
+.btn-custom:hover {
+    background-color: var(--ccs-primary-hover);
+    color: white;
+}
