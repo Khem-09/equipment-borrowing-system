@@ -258,3 +258,53 @@ body {
     background-color: var(--ccs-primary-hover);
     color: white;
 }
+
+/* --- HYBRID GLASSMORPHISM STYLES --- */
+
+/* Deep, rich background gradient */
+.bg-gradient-custom {
+    background: linear-gradient(135deg, var(--ccs-darkest) 0%, #0a2e1d 50%, #114a31 100%);
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
+    color: white;
+}
+
+/* The Glass Panel */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.05); /* Very slight white tint */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px); /* Safari support */
+    border: 1px solid rgba(255, 255, 255, 0.15); /* Subtle white border */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); /* Soft, deep shadow */
+    color: #ffffff;
+}
+
+/* Glass Form Inputs (for login) */
+.glass-input {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 8px;
+}
+
+.glass-input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.glass-input:focus {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: var(--ccs-primary) !important;
+    box-shadow: 0 0 0 0.25rem rgba(31, 125, 83, 0.4) !important;
+}
+
+/* Custom Navbar link colors for dark background */
+.nav-link-custom {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 500;
+    transition: 0.3s ease;
+}
+
+.nav-link-custom:hover {
+    color: #ffffff !important;
+}
