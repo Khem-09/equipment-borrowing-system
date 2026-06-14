@@ -1,3 +1,7 @@
+<?php 
+$currentPage = basename($_SERVER['PHP_SELF']); 
+?>
+
 <div class="sidebar shadow-sm" id="sidebar">
     <div class="sidebar-header">
         <h5 class="m-0 fw-bold menu-text text-white">Admin</h5>
@@ -10,22 +14,22 @@
 
     <ul class="sidebar-menu">
         <li>
-            <a href="dashboard.php" class="active">
+            <a href="dashboard.php" class="<?= ($currentPage == 'dashboard.php') ? 'active' : '' ?>">
                 <i class="bi bi-grid-1x2-fill me-3"></i> <span class="menu-text">Dashboard Overview</span>
             </a>
         </li>
         <li>
-            <a href="inventory.php">
+            <a href="inventory.php" class="<?= ($currentPage == 'inventory.php') ? 'active' : '' ?>">
                 <i class="bi bi-box-seam me-3"></i> <span class="menu-text">Inventory Status</span>
             </a>
         </li>
         <li>
-            <a href="requests.php">
+            <a href="requests.php" class="<?= ($currentPage == 'requests.php') ? 'active' : '' ?>">
                 <i class="bi bi-file-earmark-check me-3"></i> <span class="menu-text">Pending Requests</span>
             </a>
         </li>
         <li>
-            <a href="users.php">
+            <a href="users.php" class="<?= ($currentPage == 'users.php') ? 'active' : '' ?>">
                 <i class="bi bi-people me-3"></i> <span class="menu-text">Manage Students</span>
             </a>
         </li>
