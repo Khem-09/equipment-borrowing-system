@@ -1,6 +1,6 @@
 <div class="sidebar shadow-sm" id="sidebar">
     <div class="sidebar-header">
-        <h5 class="m-0 fw-bold menu-text text-white">CCS Admin</h5>
+        <h5 class="m-0 fw-bold menu-text text-white">Admin</h5>
         <i class="bi bi-shield-lock d-none collapsed-icon text-white"></i>
     </div>
     
