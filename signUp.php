@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $check_stmt->execute(['school_id' => $school_id]);
 
         if ($check_stmt->rowCount() > 0) {
-            $error = "This School ID is already registered.";
+            // ERROR MESSAGE FOR EXISTING SCHOOL ID
+            $error = "This School ID is already registered. Please log in instead.";
         } else {
             // Hash the password
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
