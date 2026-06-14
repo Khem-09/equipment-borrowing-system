@@ -1,11 +1,4 @@
 <?php
-session_start();
-
-// Protect the page: Only Admins allowed
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Admin') {
-    header("Location: ../index.php");
-    exit;
-}
 
 require_once '../classes/database.php';
 $db = new Database();
