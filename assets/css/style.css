@@ -308,3 +308,62 @@ body {
 .nav-link-custom:hover {
     color: #ffffff !important;
 }
+
+/* --- LAYOUT FIXES (SIDEBAR & MAIN CONTENT) --- */
+
+/* Ensure the wrapper takes up the full height */
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+    background-color: #f8f9fa; /* matches bg-light */
+}
+
+/* By default, the sidebar is 260px wide. 
+   We must push the main content over by exactly 260px.
+*/
+.main-content {
+    flex: 1;
+    margin-left: 260px; /* Width of the expanded sidebar */
+    transition: margin-left 0.3s ease-in-out; /* Smooth slide animation */
+    min-width: 0; /* Prevents flexbox from causing overflow issues */
+}
+
+/* --- COLLAPSED STATE STYLES --- */
+
+/* When the sidebar gets the 'collapsed' class via JavaScript,
+   it shrinks to 80px wide. 
+*/
+.sidebar.collapsed {
+    width: 80px !important;
+}
+
+/* Hide text and shrink padding when collapsed */
+.sidebar.collapsed .sidebar-header h5,
+.sidebar.collapsed .nav-link span,
+.sidebar.collapsed small.text-uppercase {
+    display: none;
+}
+
+/* Center the icons when collapsed */
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.sidebar.collapsed .sidebar-footer a {
+    font-size: 0; /* Hide text */
+    padding: 10px !important;
+}
+
+.sidebar.collapsed .sidebar-footer i {
+    font-size: 1.2rem;
+    margin: 0 !important;
+}
+
+/* When the sidebar is collapsed, the main content margin 
+   must also shrink to 80px so the content expands left.
+*/
+.sidebar.collapsed ~ .main-content {
+    margin-left: 80px; 
+}

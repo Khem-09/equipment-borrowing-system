@@ -1,83 +1,61 @@
 <?php
 session_start();
+
+// Protect the page: Only logged-in users (Admins) allowed
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../index.php");
+    exit;
+}
+
 require_once '../classes/database.php';
-require_once '../classes/equipment.php';
+$db = new Database();
+$conn = $db->getConnection();
 
-$database = new Database();
-$db = $database->getConnection();
-$equipmentObj = new Equipment($db);
+$message = '';
 
-// File Upload (image)
-function handleFileUpload($fileInputName) {
-    if (!isset($_FILES[$fileInputName])) {
-        return null; 
-    }
+// --- PROCESS FORM SUBMISSIONS (CREATE, UPDATE, DELETE) ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $action = $_POST['action'] ?? '';
 
-    $fileError = $_FILES[$fileInputName]['error'];
+    if ($action === 'add') {
+        $name = trim($_POST['category_name']);
+        $desc = trim($_POST['description']);
 
-    if ($fileError === UPLOAD_ERR_NO_FILE) {
-        return null; 
-    }
+        $stmt = $conn->prepare("INSERT INTO equipment_categories (category_name, description) VALUES (?, ?)");
+        if ($stmt->execute([$name, $desc])) {
+            $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm mb-4'>Category added successfully!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        }
+    } 
+    elseif ($action === 'edit') {
+        $id = (int)$_POST['id'];
+        $name = trim($_POST['category_name']);
+        $desc = trim($_POST['description']);
 
-    if ($fileError !== UPLOAD_ERR_OK) {
-        die("UPLOAD ERROR STOP: PHP Error Code " . $fileError . " (Code 1 means file exceeds 2MB XAMPP limit).");
-    }
-
-    $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    $fileType = $_FILES[$fileInputName]['type'];
-    
-    if (!in_array($fileType, $allowedTypes)) {
-        die("UPLOAD ERROR STOP: Invalid file format. System saw: " . $fileType);
-    }
-
-    $ext = pathinfo($_FILES[$fileInputName]['name'], PATHINFO_EXTENSION);
-    $newName = uniqid('eq_') . '.' . $ext; 
-    
-    $targetDir = '../assets/images/equipment/';
-    
-    if (!is_dir($targetDir)) {
-        die("UPLOAD ERROR STOP: The folder '" . $targetDir . "' does not exist. You need to create it.");
-    }
-    
-    $destination = $targetDir . $newName;
-    
-    if (move_uploaded_file($_FILES[$fileInputName]['tmp_name'], $destination)) {
-        return $newName;
-    } else {
-        die("UPLOAD ERROR STOP: Failed to move file. XAMPP might not have write permissions to the folder.");
+        $stmt = $conn->prepare("UPDATE equipment_categories SET category_name=?, description=? WHERE id=?");
+        if ($stmt->execute([$name, $desc, $id])) {
+            $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm mb-4'>Category updated successfully!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        }
+    } 
+    elseif ($action === 'delete') {
+        $id = (int)$_POST['id'];
+        $stmt = $conn->prepare("DELETE FROM equipment_categories WHERE id=?");
+        if ($stmt->execute([$id])) {
+            $message = "<div class='alert alert-secondary alert-dismissible fade show shadow-sm mb-4'>Category deleted successfully!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        }
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action'])) {
-        
-        if ($_POST['action'] === 'add') {
-            $imageName = handleFileUpload('equipment_photo');
-            $imageName = $imageName ? $imageName : 'default.png'; // Fallback
-            $equipmentObj->addEquipment($_POST['item_name'], $_POST['description'], $_POST['stock_quantity'], $imageName);
-        } 
-        elseif ($_POST['action'] === 'edit') {
-            $newImageName = handleFileUpload('equipment_photo');
-            // If $newImageName is null, the Equipment class knows to keep the old image
-            $equipmentObj->updateEquipment($_POST['equipment_id'], $_POST['item_name'], $_POST['description'], $_POST['stock_quantity'], $newImageName);
-        }
-        elseif ($_POST['action'] === 'manage_stock') {
-            // Update stock quantity only
-            if (isset($_POST['equipment_id']) && isset($_POST['new_stock'])) {
-                $equipmentObj->updateStock($_POST['equipment_id'], $_POST['new_stock']);
-            }
-        }
-        elseif ($_POST['action'] === 'delete') {
-            $equipmentObj->deleteEquipment($_POST['equipment_id']);
-        }
-        
-        header("Location: inventory.php");
-        exit();
-    }
-}
-$searchTerm = isset($_GET['search']) ? $_GET['search'] : "";
-
-$inventoryList = $equipmentObj->getAllEquipment($searchTerm);
+// --- FETCH ALL CATEGORIES ---
+// We also count how many physical assets belong to each category so the Admin knows their total stock
+$query = "
+    SELECT c.*, 
+           (SELECT COUNT(*) FROM equipment_assets a WHERE a.category_id = c.id) as total_assets,
+           (SELECT COUNT(*) FROM equipment_assets a WHERE a.category_id = c.id AND a.status = 'Available') as available_assets
+    FROM equipment_categories c 
+    ORDER BY c.category_name ASC
+";
+$stmt = $conn->query($query);
+$categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -85,119 +63,91 @@ $inventoryList = $equipmentObj->getAllEquipment($searchTerm);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory | CCS Borrowing</title>
+    <title>Equipment Categories | LabBorrow</title>
     <link href="../assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="../assets/bootstrap/icons/bootstrap-icons.css" rel="stylesheet">
     <link href="../assets/css/style.css" rel="stylesheet">
-    <style>
-        .eq-thumbnail {
-            width: 45px;
-            height: 45px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-    </style>
 </head>
-<body>
+<body class="bg-light">
 
 <div class="wrapper">
-    <?php include '../includes/admin_sidebar.php'; ?>
+    <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content" id="mainContent">
         
         <div class="topbar">
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
-                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Inventory Management</h5>
+                <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
+                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Equipment Categories</h5>
             </div>
             <div class="d-flex align-items-center">
                 <div class="text-end me-3 d-none d-sm-block">
-                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);">Maya</div>
+                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
                     <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
                 </div>
-                <img src="https://ui-avatars.com/api/?name=Maya&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
+                <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
             </div>
-        </div>
-
-        <div class="filter-bar d-flex justify-content-between align-items-center flex-wrap gap-3">
-            <div>
-                <button type="button" data-bs-toggle="modal" data-bs-target="#addEquipmentModal" class="btn btn-sm btn-custom px-4 py-2 rounded-pill shadow-sm fw-medium">
-                    <i class="bi bi-plus-lg me-2"></i>Add New Equipment
-                </button>
-            </div>
-           <form action="inventory.php" method="GET" class="input-group" style="max-width: 350px;">
-                <button type="submit" class="input-group-text bg-white border-end-0 text-muted border" style="cursor: pointer;">
-                    <i class="bi bi-search"></i>
-                </button>
-                
-                <input type="text" name="search" class="form-control border-start-0 ps-0" 
-                       placeholder="Search inventory..." 
-                       value="<?= htmlspecialchars($searchTerm) ?>">
-                
-                <?php if(!empty($searchTerm)): ?>
-                    <a href="inventory.php" class="btn btn-outline-secondary border text-muted" title="Clear Search">
-                        <i class="bi bi-x-circle"></i>
-                    </a>
-                <?php endif; ?>
-            </form>
         </div>
 
         <div class="content-area p-4 p-md-5">
-            <div class="table-card shadow-sm border-0">
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <p class="text-muted mb-0">Manage general types of laboratory equipment.</p>
+                <button class="btn btn-custom rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#addModal">
+                    <i class="bi bi-plus-lg me-1"></i> New Category
+                </button>
+            </div>
+
+            <?= $message ?>
+
+            <div class="table-card shadow-sm border-0 bg-white rounded-4">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="text-uppercase small text-muted">
+                        <thead class="bg-transparent text-muted small text-uppercase" style="letter-spacing: 0.5px;">
                             <tr>
-                                <th>Item</th>
-                                <th>Total</th>
-                                <th>Available</th>
-                                <th>Borrowed</th>
-                                <th>Overdue</th>
-                                <th class="text-end">Actions</th>
+                                <th class="border-bottom-0 pb-3 ps-4 pt-4">Category Name</th>
+                                <th class="border-bottom-0 pb-3 pt-4">Description</th>
+                                <th class="border-bottom-0 pb-3 pt-4 text-center">Total Items</th>
+                                <th class="border-bottom-0 pb-3 pt-4 text-center">Available</th>
+                                <th class="border-bottom-0 pb-3 pe-4 pt-4 text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach($inventoryList as $item): 
-                                $borrowed = $item['borrowed_count'] ?? 0;
-                                $overdue = $item['overdue_count'] ?? 0;
-                                $available = $item['stock_quantity'] - $borrowed;
-                            ?>
-                            <tr>
-                                <td class="fw-bold">
-                                    <?php $img = !empty($item['image_path']) ? $item['image_path'] : 'default.png'; ?>
-                                    <div class="d-flex align-items-center">
-                                        <img src="../assets/images/equipment/<?= htmlspecialchars($img) ?>" alt="<?= htmlspecialchars($item['item_name']) ?>" class="eq-thumbnail me-2">
-                                        <div><?= htmlspecialchars($item['item_name']); ?></div>
-                                    </div>
-                                </td>
-                                <td><?= $item['stock_quantity']; ?></td>
-                                <td><?= $available; ?></td>
-                                <td><?= $borrowed; ?></td>
-                                <td><?= $overdue; ?></td>
-                                <td class="text-end">
-                                    <div class="d-inline-flex align-items-center">
-                                        <a class="btn btn-sm btn-light border me-1 manage-stock-btn" href="#" data-bs-toggle="modal" data-bs-target="#manageStockModal"
-                                           data-id="<?= $item['id'] ?>" data-stock="<?= $item['stock_quantity'] ?>" data-name="<?= htmlspecialchars($item['item_name']) ?>" title="Manage Stock">
-                                           <i class="bi bi-list-check"></i>
-                                        </a>
-
-                                        <a class="btn btn-sm btn-light border me-1 edit-btn" href="#" data-bs-toggle="modal" data-bs-target="#editEquipmentModal"
-                                           data-id="<?= $item['id'] ?>" data-name="<?= htmlspecialchars($item['item_name']) ?>" data-desc="<?= htmlspecialchars($item['description']) ?>" data-stock="<?= $item['stock_quantity'] ?>" title="Edit">
-                                           <i class="bi bi-pencil-square"></i>
-                                        </a>
-
-                                        <form method="POST" action="inventory.php" onsubmit="return confirm('Delete this equipment type?');" style="display:inline-block; margin:0;">
+                            <?php if (count($categories) > 0): ?>
+                                <?php foreach ($categories as $row): ?>
+                                <tr>
+                                    <td class="ps-4 fw-bold" style="color: var(--ccs-darkest);">
+                                        <?= htmlspecialchars($row['category_name']) ?>
+                                    </td>
+                                    <td class="text-muted small" style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        <?= htmlspecialchars($row['description']) ?>
+                                    </td>
+                                    <td class="text-center fw-semibold"><?= $row['total_assets'] ?></td>
+                                    <td class="text-center">
+                                        <span class="badge <?= $row['available_assets'] > 0 ? 'bg-success' : 'bg-danger' ?> rounded-pill">
+                                            <?= $row['available_assets'] ?>
+                                        </span>
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <button class="btn btn-sm btn-light border rounded px-3 me-1 text-primary fw-medium shadow-sm edit-category-btn"
+                                            data-id="<?= $row['id'] ?>"
+                                            data-name="<?= htmlspecialchars($row['category_name']) ?>"
+                                            data-desc="<?= htmlspecialchars($row['description'] ?? '') ?>">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <form method="POST" action="" class="d-inline" onsubmit="return confirm('WARNING: Deleting this category will delete ALL physical assets attached to it. Are you sure?');">
                                             <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="equipment_id" value="<?= $item['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger border" title="Delete">
-                                                <i class="bi bi-trash"></i>
+                                            <input type="hidden" name="id" value="<?= $row['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-light border rounded px-3 text-danger fw-medium shadow-sm">
+                                                <i class="bi bi-trash3"></i>
                                             </button>
                                         </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr><td colspan="5" class="text-center text-muted py-5">No equipment categories added yet.</td></tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -206,141 +156,84 @@ $inventoryList = $equipmentObj->getAllEquipment($searchTerm);
     </div>
 </div>
 
-        <div class="modal fade" id="manageStockModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content border-0 shadow">
-                    <div class="modal-header bg-light border-0">
-                        <h5 class="modal-title fw-bold" style="color: var(--ccs-darkest);">Manage Stock</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form action="inventory.php" method="POST">
-                        <input type="hidden" name="action" value="manage_stock">
-                        <input type="hidden" name="equipment_id" id="manage_id">
-                        <div class="modal-body p-4 pt-2">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-muted">Item</label>
-                                <div id="manage_name" class="fw-bold"></div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small text-muted">Current Stock</label>
-                                <div id="manage_current_stock" class="mb-2"></div>
-                                <label class="form-label fw-bold small text-muted">Set New Total Stock</label>
-                                <input type="number" name="new_stock" id="manage_new_stock" class="form-control" required min="0">
-                            </div>
-                        </div>
-                        <div class="modal-footer bg-light border-0">
-                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-custom px-4">Update Stock</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-<div class="modal fade" id="addEquipmentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header" style="background-color: var(--ccs-darkest); color: white;">
-                <h5 class="modal-title">Add New Equipment</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            
-            <form action="inventory.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="add">
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Upload Photo</label>
-                        <input type="file" name="equipment_photo" class="form-control" accept="image/*">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Item Name</label>
-                        <input type="text" name="item_name" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Initial Stock Quantity</label>
-                        <input type="number" name="stock_quantity" class="form-control" required min="1">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Description</label>
-                        <textarea name="description" class="form-control" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-custom px-4">Save Equipment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="editEquipmentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-light border-0">
-                <h5 class="modal-title fw-bold" style="color: var(--ccs-darkest);">Edit Equipment</h5>
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" style="color: var(--ccs-darkest);">Add Equipment Category</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            
-            <form action="inventory.php" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="edit">
-                <input type="hidden" name="equipment_id" id="edit_id">
-                
-                <div class="modal-body p-4 pt-2">
-                    <div class="alert alert-info border-0 bg-opacity-10 small">
-                        <i class="bi bi-info-circle me-1"></i> Leave the photo field blank to keep the current image.
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Replace Photo (Optional)</label>
-                        <input type="file" name="equipment_photo" class="form-control" accept="image/*">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Item Name</label>
-                        <input type="text" name="item_name" id="edit_name" class="form-control" required>
-                    </div>
-                    <input type="hidden" name="stock_quantity" id="edit_stock">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Description</label>
-                        <textarea name="description" id="edit_desc" class="form-control" rows="3"></textarea>
-                    </div>
+            <div class="modal-body">
+                <input type="hidden" name="action" value="add">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">CATEGORY NAME</label>
+                    <input type="text" name="category_name" class="form-control bg-light" placeholder="e.g., 250mL Erlenmeyer Flask" required>
                 </div>
-                <div class="modal-footer bg-light border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-custom px-4">Update Changes</button>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">DESCRIPTION (Optional)</label>
+                    <textarea name="description" class="form-control bg-light" rows="3" placeholder="Brief details about this type of equipment..."></textarea>
                 </div>
-            </form>
-        </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-custom rounded-pill px-4">Save Category</button>
+            </div>
+        </form>
     </div>
 </div>
 
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="" class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" style="color: var(--ccs-darkest);">Edit Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="id" id="edit_id">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">CATEGORY NAME</label>
+                    <input type="text" name="category_name" id="edit_name" class="form-control bg-light" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">DESCRIPTION</label>
+                    <textarea name="description" id="edit_desc" class="form-control bg-light" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-custom rounded-pill px-4">Update Category</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Sidebar Toggle
-    document.getElementById('sidebarToggle').addEventListener('click', function() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
+    document.getElementById('sidebarToggle').addEventListener('click', function() { 
+        // This toggles the 'collapsed' class on the sidebar
+        document.getElementById('sidebar').classList.toggle('collapsed'); 
     });
 
-    // Populate Edit Modal Data
-    const editButtons = document.querySelectorAll('.edit-btn');
-    editButtons.forEach(button => {
+    // Safely handle Edit button clicks using data attributes
+    document.querySelectorAll('.edit-category-btn').forEach(button => {
         button.addEventListener('click', function() {
-            document.getElementById('edit_id').value = this.getAttribute('data-id');
-            document.getElementById('edit_name').value = this.getAttribute('data-name');
-            document.getElementById('edit_stock').value = this.getAttribute('data-stock');
-            document.getElementById('edit_desc').value = this.getAttribute('data-desc');
-        });
-    });
+            // Get data from the clicked button
+            const id = this.getAttribute('data-id');
+            const name = this.getAttribute('data-name');
+            const desc = this.getAttribute('data-desc');
 
-    // Populate Manage Stock Modal
-    const manageButtons = document.querySelectorAll('.manage-stock-btn');
-    manageButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.getElementById('manage_id').value = this.getAttribute('data-id');
-            document.getElementById('manage_name').textContent = this.getAttribute('data-name');
-            document.getElementById('manage_current_stock').textContent = this.getAttribute('data-stock');
-            document.getElementById('manage_new_stock').value = this.getAttribute('data-stock');
+            // Inject data into the modal inputs
+            document.getElementById('edit_id').value = id;
+            document.getElementById('edit_name').value = name;
+            document.getElementById('edit_desc').value = desc;
+            
+            // Show the modal
+            var editModal = new bootstrap.Modal(document.getElementById('editModal'));
+            editModal.show();
         });
     });
 </script>
-<script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
