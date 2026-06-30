@@ -11,9 +11,11 @@ $db = new Database();
 $conn = $db->getConnection();
 
 $message = '';
+$show_form = false;
 
 // --- PROCESS THE CHECKOUT ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
+    $show_form = true;
     $student_id = trim($_POST['student_id']);
     $student_name = trim($_POST['student_name']);
     $course_section = trim($_POST['course_section']);
@@ -21,15 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
     $instructor_name = trim($_POST['instructor_name']);
     $class_time = trim($_POST['class_time']);
     $processed_by = $_SESSION['user_id'];
-    
+
     $asset_ids = json_decode($_POST['asset_ids'], true);
 
     if (empty($asset_ids)) {
-        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm'>You must add at least one item to the slip!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'>You must add at least one item to the slip!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
     } else {
         try {
             $conn->beginTransaction();
-            
+
             $slip_number = 'SLP-' . date('Ymd-His');
 
             $stmt = $conn->prepare("INSERT INTO slips (slip_number, student_id, student_name, course_section, subject_code, instructor_name, class_time, processed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
@@ -45,19 +47,32 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
             }
 
             $conn->commit();
-            $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm'><strong>Success!</strong> Borrowing Slip <strong>$slip_number</strong> has been processed successfully. <a href='active_slips.php' class='alert-link'>View Active Borrows</a><button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
-            
+            $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm border border-success border-opacity-50 text-dark' style='background-color: rgba(31, 125, 83, 0.15);'><strong>Success!</strong> Borrowing Slip <strong>$slip_number</strong> has been processed successfully. <a href='active_slips.php' class='alert-link fw-bold' style='color: var(--ccs-primary);'>View Active Borrows</a><button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+            $show_form = false;
+
         } catch (Exception $e) {
             $conn->rollBack();
-            $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm'>Transaction Failed: " . $e->getMessage() . "<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+            $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'>Transaction Failed: " . $e->getMessage() . "<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
         }
     }
 }
 
+// --- FETCH UNIQUE RECENT BORROWERS FOR THE TABLE ---
+$borrowers_query = "SELECT s.student_id, s.student_name, s.course_section, s.subject_code AS last_subject
+                    FROM slips s
+                    WHERE s.id = (
+                        SELECT MAX(s2.id)
+                        FROM slips s2
+                        WHERE s2.student_id = s.student_id
+                    )
+                    ORDER BY s.id DESC";
+$borrowers_stmt = $conn->query($borrowers_query);
+$borrowers = $borrowers_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 // --- FETCH AVAILABLE ASSETS ---
-$query = "SELECT a.id, a.unique_asset_code, c.category_name 
-          FROM equipment_assets a 
-          JOIN equipment_categories c ON a.category_id = c.id 
+$query = "SELECT a.id, a.unique_asset_code, c.category_name
+          FROM equipment_assets a
+          JOIN equipment_categories c ON a.specification_id = c.id
           WHERE a.status = 'Available'
           ORDER BY c.category_name ASC, a.unique_asset_code ASC";
 $stmt = $conn->query($query);
@@ -83,6 +98,10 @@ foreach ($available_assets as $asset) {
         /* Small hover effect for the catalog items */
         .catalog-item { cursor: pointer; transition: 0.2s; }
         .catalog-item:hover { background-color: var(--ccs-primary) !important; color: white !important; border-color: var(--ccs-primary) !important; }
+
+        /* Elegant pointer cursor & brand secondary brand hover tint for the table rows */
+        .cursor-pointer tr { cursor: pointer; transition: background-color 0.15s ease; }
+        .cursor-pointer tr:hover { background-color: rgba(26, 100, 67, 0.08) !important; }
     </style>
 </head>
 <body class="bg-light">
@@ -94,107 +113,188 @@ foreach ($available_assets as $asset) {
         <div class="topbar">
             <div class="d-flex align-items-center">
                 <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
-                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">New Borrowing Slip</h5>
+                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Borrowing Slips</h5>
+            </div>
+            <div class="d-flex align-items-center">
+                <div class="text-end me-3 d-none d-sm-block">
+                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
+                    <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
+                </div>
+                <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
             </div>
         </div>
 
         <div class="content-area p-4 p-md-5">
             <?= $message ?>
 
-            <form method="POST" action="" id="slipForm">
-                <div class="row g-4">
-                    
-                    <div class="col-lg-5">
-                        <div class="card shadow-sm border-0 rounded-4 mb-4">
-                            <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
-                                <h6 class="fw-bold" style="color: var(--ccs-primary);"><i class="bi bi-person-badge me-2"></i>Borrower Details</h6>
-                            </div>
-                            <div class="card-body p-4">
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold">STUDENT ID</label>
-                                    <input type="text" name="student_id" class="form-control bg-light" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold">FULL NAME</label>
-                                    <input type="text" name="student_name" class="form-control bg-light" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold">COURSE & SECTION</label>
-                                    <input type="text" name="course_section" class="form-control bg-light" placeholder="e.g. BSChem-2A" required>
-                                </div>
-                            </div>
-                        </div>
+            <!-- Table View Container -->
+            <div id="tableViewContainer" class="<?= $show_form ? 'd-none' : '' ?>">
+                <div class="mb-4">
+                    <h4 class="fw-bold mb-1" style="color: var(--ccs-darkest);">Quick Borrowers Directory</h4>
+                    <p class="text-muted small mb-0">Select any previous borrower below to start checkout, or click "New Borrowing Slip" to register a new borrower.</p>
+                </div>
 
-                        <div class="card shadow-sm border-0 rounded-4">
-                            <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
-                                <h6 class="fw-bold" style="color: var(--ccs-primary);"><i class="bi bi-journal-bookmark me-2"></i>Class Details</h6>
-                            </div>
-                            <div class="card-body p-4">
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold">SUBJECT CODE</label>
-                                    <input type="text" name="subject_code" class="form-control bg-light" placeholder="e.g. CHEM201" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold">INSTRUCTOR NAME</label>
-                                    <input type="text" name="instructor_name" class="form-control bg-light" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label text-muted small fw-bold">CLASS TIME</label>
-                                    <input type="text" name="class_time" class="form-control bg-light" placeholder="e.g. 1:00 PM - 4:00 PM" required>
-                                </div>
-                            </div>
-                        </div>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="input-group shadow-sm rounded-pill overflow-hidden border bg-white" style="width: 320px; max-width: 100%;">
+                        <span class="input-group-text bg-white border-0 ps-3"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="borrowerSearch" class="form-control border-0 px-2" placeholder="Search ID, Name..." style="font-size: 0.9rem;">
                     </div>
+                    <button type="button" id="btnNewSlip" class="btn btn-custom rounded-pill px-4 shadow-sm">
+                        <i class="bi bi-file-earmark-plus me-1"></i> New Borrowing Slip
+                    </button>
+                </div>
 
-                    <div class="col-lg-7">
-                        <div class="card shadow-sm border-0 rounded-4 h-100 d-flex flex-column">
-                            <div class="card-header bg-white border-bottom-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
-                                <h6 class="fw-bold mb-0" style="color: var(--ccs-primary);"><i class="bi bi-cart3 me-2"></i>Equipment Cart</h6>
-                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#browseModal">
-                                    <i class="bi bi-search me-1"></i> Browse Catalog
-                                </button>
-                            </div>
-                            
-                            <div class="card-body p-4 flex-grow-1 d-flex flex-column">
-                                
-                                <div class="mb-4">
-                                    <label class="form-label text-muted small fw-bold">SCAN OR TYPE ASSET CODE</label>
-                                    <div class="input-group shadow-sm rounded-pill overflow-hidden">
-                                        <input type="text" id="assetInput" list="assetSuggestions" class="form-control border-0 bg-light px-4" placeholder="e.g., FLASK-001" autocomplete="off">
-                                        <datalist id="assetSuggestions">
-                                            </datalist>
-                                        
-                                        <button type="button" id="addBtn" class="btn btn-custom px-4"><i class="bi bi-plus-lg"></i> Add</button>
-                                    </div>
-                                    <div id="scanError" class="text-danger small mt-2 d-none"><i class="bi bi-exclamation-circle me-1"></i> Asset not found or already in cart.</div>
-                                </div>
-
-                                <div class="table-responsive flex-grow-1 border rounded bg-light p-2 mb-4" style="min-height: 250px;">
-                                    <table class="table table-sm table-hover align-middle mb-0">
-                                        <thead class="text-muted small text-uppercase">
-                                            <tr>
-                                                <th>Asset Code</th>
-                                                <th>Category</th>
-                                                <th class="text-end">Remove</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="cartBody">
-                                            <tr id="emptyCartRow"><td colspan="3" class="text-center text-muted py-5">Cart is empty. Scan or browse items.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <input type="hidden" name="asset_ids" id="hiddenAssetIds" value="[]">
-                                
-                                <button type="submit" name="process_slip" class="btn btn-custom btn-lg w-100 rounded-pill shadow-sm mt-auto fw-bold" id="submitBtn" disabled>
-                                    <i class="bi bi-printer me-2"></i> Process & Generate Slip
-                                </button>
-
-                            </div>
-                        </div>
+                <div class="table-card shadow-sm border-0 bg-white rounded-4">
+                    <div class="table-responsive">
+                       <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-transparent text-dark fw-bold text-uppercase" style="letter-spacing: 0.5px;">
+                                <tr>
+                                    <th class="border-bottom-0 pb-3 ps-4 pt-4 fw-bold text-dark">Student ID</th>
+                                    <th class="border-bottom-0 pb-3 pt-4 fw-bold text-dark">Full Name</th>
+                                    <th class="border-bottom-0 pb-3 pt-4 fw-bold text-dark">Course & Section</th>
+                                    <th class="border-bottom-0 pb-3 pe-4 pt-4 fw-bold text-dark">Last Subject Borrowed</th>
+                                </tr>
+                            </thead>
+                            <tbody class="cursor-pointer" id="borrowersTableBody">
+                                <?php if (count($borrowers) > 0): ?>
+                                    <?php foreach ($borrowers as $row): ?>
+                                    <tr onclick="autofillBorrower('<?= htmlspecialchars($row['student_id'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['student_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['course_section'], ENT_QUOTES) ?>')">
+                                        <td class="ps-4 font-monospace text-secondary student-id-col">
+                                            <?= htmlspecialchars($row['student_id']) ?>
+                                        </td>
+                                        <td class="text-secondary student-name-col">
+                                            <?= htmlspecialchars($row['student_name']) ?>
+                                        </td>
+                                        <td class="text-secondary student-course-col">
+                                            <?= htmlspecialchars($row['course_section']) ?>
+                                        </td>
+                                        <td class="pe-4 text-muted student-subject-col">
+                                            <?= htmlspecialchars($row['last_subject']) ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr><td colspan="4" class="text-center text-muted py-5 text-uppercase fw-semibold" style="letter-spacing: 0.5px;">No previous borrowers found.</td></tr>
+                                <?php endif; ?>
+                                <tr id="noResultsRow" class="d-none">
+                                    <td colspan="4" class="text-center text-muted py-5 fw-medium">
+                                        <i class="bi bi-search fs-4 d-block mb-2"></i>
+                                        No matching borrowers found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </form>
+            </div>
+
+            <!-- Form View Container -->
+            <div id="formViewContainer" class="<?= $show_form ? '' : 'd-none' ?>">
+                <div class="d-flex align-items-center mb-4">
+                    <button type="button" id="btnBackToList" class="btn btn-light border rounded-pill px-3 shadow-sm me-3">
+                        <i class="bi bi-arrow-left me-1"></i> Back to List
+                    </button>
+                    <div>
+                        <h4 class="fw-bold mb-0" style="color: var(--ccs-darkest);">New Borrowing Slip Form</h4>
+                        <p class="text-muted small mb-0">Fill out details and add available equipment to generate a checkout slip.</p>
+                    </div>
+                </div>
+
+                <form method="POST" action="" id="slipForm">
+                    <div class="row g-4">
+
+                        <div class="col-lg-5">
+                            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                                    <h6 class="fw-bold" style="color: var(--ccs-primary);"><i class="bi bi-person-badge me-2"></i>Borrower Details</h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small fw-bold">STUDENT ID</label>
+                                        <input type="text" name="student_id" id="student_id_input" class="form-control bg-light" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small fw-bold">FULL NAME</label>
+                                        <input type="text" name="student_name" id="student_name_input" class="form-control bg-light" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small fw-bold">COURSE & SECTION</label>
+                                        <input type="text" name="course_section" id="course_section_input" class="form-control bg-light" placeholder="e.g. BSChem-2A" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm border-0 rounded-4">
+                                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                                    <h6 class="fw-bold" style="color: var(--ccs-primary);"><i class="bi bi-journal-bookmark me-2"></i>Class Details</h6>
+                                </div>
+                                <div class="card-body p-4">
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small fw-bold">SUBJECT CODE</label>
+                                        <input type="text" name="subject_code" id="subject_code_input" class="form-control bg-light" placeholder="e.g. CHEM201" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small fw-bold">INSTRUCTOR NAME</label>
+                                        <input type="text" name="instructor_name" class="form-control bg-light" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-muted small fw-bold">CLASS TIME</label>
+                                        <input type="text" name="class_time" class="form-control bg-light" placeholder="e.g. 1:00 PM - 4:00 PM" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-7">
+                            <div class="card shadow-sm border-0 rounded-4 h-100 d-flex flex-column">
+                                <div class="card-header bg-white border-bottom-0 pt-4 pb-2 px-4 d-flex justify-content-between align-items-center">
+                                    <h6 class="fw-bold mb-0" style="color: var(--ccs-primary);"><i class="bi bi-cart3 me-2"></i>Equipment Cart</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#browseModal">
+                                        <i class="bi bi-search me-1"></i> Browse Catalog
+                                    </button>
+                                </div>
+
+                                <div class="card-body p-4 flex-grow-1 d-flex flex-column">
+
+                                    <div class="mb-4">
+                                        <label class="form-label text-muted small fw-bold">SCAN OR TYPE ASSET CODE</label>
+                                        <div class="input-group shadow-sm rounded-pill overflow-hidden">
+                                            <input type="text" id="assetInput" list="assetSuggestions" class="form-control border-0 bg-light px-4" placeholder="e.g., FLASK-001" autocomplete="off">
+                                            <datalist id="assetSuggestions">
+                                                </datalist>
+
+                                            <button type="button" id="addBtn" class="btn btn-custom px-4"><i class="bi bi-plus-lg"></i> Add</button>
+                                        </div>
+                                        <div id="scanError" class="text-danger small mt-2 d-none"><i class="bi bi-exclamation-circle me-1"></i> Asset not found or already in cart.</div>
+                                    </div>
+
+                                    <div class="table-responsive flex-grow-1 border rounded bg-light p-2 mb-4" style="min-height: 250px;">
+                                        <table class="table table-sm table-hover align-middle mb-0">
+                                            <thead class="text-muted small text-uppercase">
+                                                <tr>
+                                                    <th>Asset Code</th>
+                                                    <th>Category</th>
+                                                    <th class="text-end">Remove</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="cartBody">
+                                                <tr id="emptyCartRow"><td colspan="3" class="text-center text-muted py-5">Cart is empty. Scan or browse items.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <input type="hidden" name="asset_ids" id="hiddenAssetIds" value="[]">
+
+                                    <button type="submit" name="process_slip" class="btn btn-custom btn-lg w-100 rounded-pill shadow-sm mt-auto fw-bold" id="submitBtn" disabled>
+                                        <i class="bi bi-printer me-2"></i> Process & Generate Slip
+                                    </button>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
         </div>
     </div>
@@ -208,7 +308,7 @@ foreach ($available_assets as $asset) {
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body bg-light p-4" id="catalogContainer">
-                
+
                 <?php if(empty($grouped_assets)): ?>
                     <div class="text-center text-muted py-5">
                         <i class="bi bi-exclamation-circle fs-1 d-block mb-3"></i>
@@ -220,7 +320,7 @@ foreach ($available_assets as $asset) {
                             <h6 class="fw-bold text-muted small text-uppercase mb-2 border-bottom pb-1"><?= htmlspecialchars($category) ?></h6>
                             <div class="d-flex flex-wrap gap-2">
                                 <?php foreach($assets as $asset): ?>
-                                    <div class="badge bg-white text-dark border p-2 catalog-item shadow-sm" 
+                                    <div class="badge bg-white text-dark border p-2 catalog-item shadow-sm"
                                          id="catalog-item-<?= $asset['id'] ?>"
                                          onclick="addFromCatalog('<?= htmlspecialchars($asset['unique_asset_code']) ?>')">
                                         <i class="bi bi-qr-code me-1"></i> <?= htmlspecialchars($asset['unique_asset_code']) ?>
@@ -238,13 +338,51 @@ foreach ($available_assets as $asset) {
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() { 
-        document.getElementById('sidebar').classList.toggle('collapsed'); 
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
     });
+
+    // Toggle views
+    const btnNewSlip = document.getElementById('btnNewSlip');
+    const btnBackToList = document.getElementById('btnBackToList');
+    const tableViewContainer = document.getElementById('tableViewContainer');
+    const formViewContainer = document.getElementById('formViewContainer');
+
+    if (btnNewSlip) {
+        btnNewSlip.addEventListener('click', function() {
+            // When opening a completely new slip manually, clear any autofilled fields to avoid confusion
+            document.getElementById('student_id_input').value = '';
+            document.getElementById('student_name_input').value = '';
+            document.getElementById('course_section_input').value = '';
+
+            tableViewContainer.classList.add('d-none');
+            formViewContainer.classList.remove('d-none');
+        });
+    }
+
+    if (btnBackToList) {
+        btnBackToList.addEventListener('click', function() {
+            tableViewContainer.classList.remove('d-none');
+            formViewContainer.classList.add('d-none');
+        });
+    }
+
+    // Autofill Borrower details on row click and redirect/switch views
+    function autofillBorrower(studentId, fullName, courseSection) {
+        document.getElementById('student_id_input').value = studentId;
+        document.getElementById('student_name_input').value = fullName;
+        document.getElementById('course_section_input').value = courseSection;
+
+        tableViewContainer.classList.add('d-none');
+        formViewContainer.classList.remove('d-none');
+
+        // Focus the next section (Subject Code) for quick input
+        document.getElementById('subject_code_input').focus();
+    }
 
     // Main arrays
     let availableAssets = <?= json_encode($available_assets) ?>;
-    let cart = []; 
+    let cart = [];
 
     const assetInput = document.getElementById('assetInput');
     const datalist = document.getElementById('assetSuggestions');
@@ -283,20 +421,20 @@ foreach ($available_assets as $asset) {
         if (assetIndex !== -1) {
             const item = availableAssets[assetIndex];
             cart.push(item);
-            
+
             // Remove from JS available array
             availableAssets.splice(assetIndex, 1);
-            
+
             // Hide the item in the visual Catalog Modal so they can't click it again
             const catalogItem = document.getElementById('catalog-item-' + item.id);
             if(catalogItem) catalogItem.style.display = 'none';
-            
+
             updateCartUI();
             updateDatalist();
-            
+
             assetInput.value = '';
             scanError.classList.add('d-none');
-            assetInput.focus(); 
+            assetInput.focus();
         } else {
             scanError.classList.remove('d-none');
         }
@@ -306,7 +444,7 @@ foreach ($available_assets as $asset) {
     addBtn.addEventListener('click', () => processCode(assetInput.value.trim()));
     assetInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            e.preventDefault(); 
+            e.preventDefault();
             processCode(assetInput.value.trim());
         }
     });
@@ -314,22 +452,22 @@ foreach ($available_assets as $asset) {
     // Remove from Cart
     window.removeFromCart = function(cartIndex) {
         const item = cart[cartIndex];
-        
+
         availableAssets.push(item);
-        
+
         // Un-hide it in the Catalog Modal
         const catalogItem = document.getElementById('catalog-item-' + item.id);
         if(catalogItem) catalogItem.style.display = 'inline-block';
-        
+
         cart.splice(cartIndex, 1);
-        
+
         updateCartUI();
         updateDatalist();
     };
 
     function updateCartUI() {
         cartBody.innerHTML = '';
-        
+
         if (cart.length === 0) {
             cartBody.appendChild(emptyCartRow);
             submitBtn.disabled = true;
@@ -361,6 +499,41 @@ foreach ($available_assets as $asset) {
     // Initialize datalist on page load
     updateDatalist();
     assetInput.focus();
+
+    // Borrower Directory search filtering
+    const borrowerSearch = document.getElementById('borrowerSearch');
+    if (borrowerSearch) {
+        borrowerSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#borrowersTableBody tr');
+            let matchedAny = false;
+
+            rows.forEach(row => {
+                if (row.id === 'noResultsRow') return;
+
+                const studentId = row.querySelector('.student-id-col')?.textContent.toLowerCase() || '';
+                const fullName = row.querySelector('.student-name-col')?.textContent.toLowerCase() || '';
+                const courseSection = row.querySelector('.student-course-col')?.textContent.toLowerCase() || '';
+                const lastSubject = row.querySelector('.student-subject-col')?.textContent.toLowerCase() || '';
+
+                if (studentId.includes(query) || fullName.includes(query) || courseSection.includes(query) || lastSubject.includes(query)) {
+                    row.classList.remove('d-none');
+                    matchedAny = true;
+                } else {
+                    row.classList.add('d-none');
+                }
+            });
+
+            const noResultsRow = document.getElementById('noResultsRow');
+            if (noResultsRow) {
+                if (!matchedAny && query !== '') {
+                    noResultsRow.classList.remove('d-none');
+                } else {
+                    noResultsRow.classList.add('d-none');
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
