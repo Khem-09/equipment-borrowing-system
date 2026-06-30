@@ -2,6 +2,8 @@
 session_start();
 require_once 'classes/database.php';
 
+$error = '';
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $db = new Database();
     $conn = $db->getConnection();
@@ -20,6 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Remove the role check, just send them to admin
         header("Location: admin/dashboard.php");
         exit;
+    } else {
+        $error = "Invalid School ID or password.";
     }
 }
 ?>
@@ -83,12 +87,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
 
                         <button type="submit" class="btn btn-custom w-100 py-2 rounded-pill fw-bold shadow-lg mb-4 text-uppercase" style="letter-spacing: 1px;">Sign In</button>
-
-                        <div class="text-center">
-                            <span class="text-white-50 small">Don't have an account?</span>
-                            <a href="signUp.php" class="text-white text-decoration-none fw-semibold small ms-1" style="transition: opacity 0.2s;">Sign up here</a>
-                        </div>
-
                     </form>
 
                 </div>

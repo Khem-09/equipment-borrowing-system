@@ -72,7 +72,7 @@ $borrowers = $borrowers_stmt->fetchAll(PDO::FETCH_ASSOC);
 // --- FETCH AVAILABLE ASSETS ---
 $query = "SELECT a.id, a.unique_asset_code, c.category_name
           FROM equipment_assets a
-          JOIN equipment_categories c ON a.category_id = c.id
+          JOIN equipment_categories c ON a.specification_id = c.id
           WHERE a.status = 'Available'
           ORDER BY c.category_name ASC, a.unique_asset_code ASC";
 $stmt = $conn->query($query);
@@ -129,10 +129,15 @@ foreach ($available_assets as $asset) {
 
             <!-- Table View Container -->
             <div id="tableViewContainer" class="<?= $show_form ? 'd-none' : '' ?>">
+                <div class="mb-4">
+                    <h4 class="fw-bold mb-1" style="color: var(--ccs-darkest);">Quick Borrowers Directory</h4>
+                    <p class="text-muted small mb-0">Select any previous borrower below to start checkout, or click "New Borrowing Slip" to register a new borrower.</p>
+                </div>
+
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h4 class="fw-bold mb-1" style="color: var(--ccs-darkest);">Quick Borrowers Directory</h4>
-                        <p class="text-muted small mb-0">Select any previous borrower below to start checkout, or click "New Borrowing Slip" to register a new borrower.</p>
+                    <div class="input-group shadow-sm rounded-pill overflow-hidden border bg-white" style="width: 320px; max-width: 100%;">
+                        <span class="input-group-text bg-white border-0 ps-3"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="borrowerSearch" class="form-control border-0 px-2" placeholder="Search ID, Name..." style="font-size: 0.9rem;">
                     </div>
                     <button type="button" id="btnNewSlip" class="btn btn-custom rounded-pill px-4 shadow-sm">
                         <i class="bi bi-file-earmark-plus me-1"></i> New Borrowing Slip
@@ -150,20 +155,20 @@ foreach ($available_assets as $asset) {
                                     <th class="border-bottom-0 pb-3 pe-4 pt-4 fw-bold text-dark">Last Subject Borrowed</th>
                                 </tr>
                             </thead>
-                            <tbody class="cursor-pointer">
+                            <tbody class="cursor-pointer" id="borrowersTableBody">
                                 <?php if (count($borrowers) > 0): ?>
                                     <?php foreach ($borrowers as $row): ?>
                                     <tr onclick="autofillBorrower('<?= htmlspecialchars($row['student_id'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['student_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['course_section'], ENT_QUOTES) ?>')">
-                                        <td class="ps-4 font-monospace fw-bold text-primary">
+                                        <td class="ps-4 font-monospace text-secondary student-id-col">
                                             <?= htmlspecialchars($row['student_id']) ?>
                                         </td>
-                                        <td class="fw-bold" style="color: var(--ccs-darkest);">
+                                        <td class="text-secondary student-name-col">
                                             <?= htmlspecialchars($row['student_name']) ?>
                                         </td>
-                                        <td class="fw-medium text-dark">
+                                        <td class="text-secondary student-course-col">
                                             <?= htmlspecialchars($row['course_section']) ?>
                                         </td>
-                                        <td class="pe-4 text-muted">
+                                        <td class="pe-4 text-muted student-subject-col">
                                             <?= htmlspecialchars($row['last_subject']) ?>
                                         </td>
                                     </tr>
@@ -171,6 +176,12 @@ foreach ($available_assets as $asset) {
                                 <?php else: ?>
                                     <tr><td colspan="4" class="text-center text-muted py-5 text-uppercase fw-semibold" style="letter-spacing: 0.5px;">No previous borrowers found.</td></tr>
                                 <?php endif; ?>
+                                <tr id="noResultsRow" class="d-none">
+                                    <td colspan="4" class="text-center text-muted py-5 fw-medium">
+                                        <i class="bi bi-search fs-4 d-block mb-2"></i>
+                                        No matching borrowers found.
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -488,6 +499,41 @@ foreach ($available_assets as $asset) {
     // Initialize datalist on page load
     updateDatalist();
     assetInput.focus();
+
+    // Borrower Directory search filtering
+    const borrowerSearch = document.getElementById('borrowerSearch');
+    if (borrowerSearch) {
+        borrowerSearch.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const rows = document.querySelectorAll('#borrowersTableBody tr');
+            let matchedAny = false;
+
+            rows.forEach(row => {
+                if (row.id === 'noResultsRow') return;
+
+                const studentId = row.querySelector('.student-id-col')?.textContent.toLowerCase() || '';
+                const fullName = row.querySelector('.student-name-col')?.textContent.toLowerCase() || '';
+                const courseSection = row.querySelector('.student-course-col')?.textContent.toLowerCase() || '';
+                const lastSubject = row.querySelector('.student-subject-col')?.textContent.toLowerCase() || '';
+
+                if (studentId.includes(query) || fullName.includes(query) || courseSection.includes(query) || lastSubject.includes(query)) {
+                    row.classList.remove('d-none');
+                    matchedAny = true;
+                } else {
+                    row.classList.add('d-none');
+                }
+            });
+
+            const noResultsRow = document.getElementById('noResultsRow');
+            if (noResultsRow) {
+                if (!matchedAny && query !== '') {
+                    noResultsRow.classList.remove('d-none');
+                } else {
+                    noResultsRow.classList.add('d-none');
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
