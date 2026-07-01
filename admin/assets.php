@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($code_exists > 0) {
             // 2. If it exists, block the insert and show a warning message
             $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm mb-4'>
-                            <strong><i class='bi bi-exclamation-triangle me-2'></i>Registration Failed:</strong> 
+                            <strong><i class='bi bi-exclamation-triangle me-2'></i>Registration Failed:</strong>
                             The asset code '<b>" . htmlspecialchars($asset_code) . "</b>' is already registered in the system.
                             <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
                         </div>";
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // --- FETCH ALL ASSETS FOR THE TABLE ---
 // We join the categories and specifications tables so we can display their names
 $query = "
-    SELECT a.*, c.category_name, s.specification_name 
+    SELECT a.*, c.category_name, s.specification_name
     FROM equipment_assets a
     JOIN equipment_categories c ON a.category_id = c.id
     JOIN equipment_specifications s ON a.specification_id = s.id
@@ -88,7 +88,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content" id="mainContent">
-        
+
         <div class="topbar">
             <div class="d-flex align-items-center">
                 <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
@@ -104,7 +104,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div class="content-area p-4 p-md-5">
-            
+
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
                 <p class="text-muted mb-0">Register specific items using their sticker IDs/Barcodes.</p>
                 <div class="d-flex align-items-center gap-3">
@@ -184,7 +184,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <div class="modal-body">
                 <input type="hidden" name="action" value="add">
-                
+
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">EQUIPMENT CATEGORY</label>
                     <select name="category_id" id="categorySelect" class="form-select bg-light" required>
@@ -231,8 +231,8 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() { 
-        document.getElementById('sidebar').classList.toggle('collapsed'); 
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
     });
 
     // --- NEW: FRONTEND TABLE FILTER LOGIC ---
@@ -245,7 +245,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
             tableRows.forEach(row => {
                 // Do not filter the "No data found" empty state row
                 if (row.querySelector('td').colSpan > 1) return;
-                
+
                 const rowText = row.textContent.toLowerCase();
                 if (rowText.includes(filterValue)) {
                     row.style.display = '';
@@ -271,7 +271,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
                 .then(response => response.json())
                 .then(data => {
                     specSelect.innerHTML = '<option value="">-- Select Specification --</option>';
-                    
+
                     if(data.length > 0) {
                         data.forEach(spec => {
                             specSelect.innerHTML += `<option value="${spec.id}">${spec.specification_name}</option>`;

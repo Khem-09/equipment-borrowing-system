@@ -11,13 +11,22 @@ require_once '../classes/database.php';
 $db = new Database();
 $conn = $db->getConnection();
 
+// Validate that the logged-in user actually exists in the db (handles truncated/restructured users database edge cases)
+$stmt_check_user = $conn->prepare("SELECT COUNT(*) FROM users WHERE id = ?");
+$stmt_check_user->execute([$_SESSION['user_id']]);
+if ($stmt_check_user->fetchColumn() == 0) {
+    session_destroy();
+    header("Location: ../index.php?error=SessionExpired");
+    exit;
+}
+
 // --- FETCH HISTORY SLIPS ---
 // Fetch slips that are 'Returned' or 'Incomplete', along with the name of the Admin who processed it
 $query = "
-    SELECT s.*, u.full_name as admin_name 
-    FROM slips s 
-    LEFT JOIN users u ON s.processed_by = u.id 
-    WHERE s.status IN ('Returned', 'Incomplete') 
+    SELECT s.*, u.full_name as admin_name
+    FROM slips s
+    LEFT JOIN users u ON s.processed_by = u.id
+    WHERE s.status IN ('Returned', 'Incomplete')
     ORDER BY s.issue_date DESC
 ";
 $stmt = $conn->query($query);
@@ -28,9 +37,9 @@ $slip_items = [];
 if (count($history_slips) > 0) {
     $slip_ids = array_column($history_slips, 'id');
     $placeholders = str_repeat('?,', count($slip_ids) - 1) . '?';
-    
+
     $query_items = "
-        SELECT si.*, a.unique_asset_code, c.category_name 
+        SELECT si.*, a.unique_asset_code, c.category_name
         FROM slip_items si
         JOIN equipment_assets a ON si.asset_id = a.id
         JOIN equipment_categories c ON a.category_id = c.id
@@ -63,7 +72,7 @@ if (count($history_slips) > 0) {
     <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content" id="mainContent">
-        
+
         <div class="topbar">
             <div class="d-flex align-items-center">
                 <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
@@ -79,7 +88,7 @@ if (count($history_slips) > 0) {
         </div>
 
         <div class="content-area p-4 p-md-5">
-            
+
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <p class="text-muted mb-0">A permanent ledger of all completed and incomplete borrowing transactions.</p>
             </div>
@@ -158,7 +167,7 @@ if (count($history_slips) > 0) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 bg-light">
-                    
+
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <h6 class="fw-bold text-muted small text-uppercase">Student Details</h6>
@@ -190,9 +199,9 @@ if (count($history_slips) > 0) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
+                                <?php
                                 $items = $slip_items[$slip['id']] ?? [];
-                                foreach ($items as $item): 
+                                foreach ($items as $item):
                                 ?>
                                     <tr>
                                         <td class="font-monospace fw-bold text-dark"><?= $item['unique_asset_code'] ?></td>
@@ -230,8 +239,8 @@ if (count($history_slips) > 0) {
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() { 
-        document.getElementById('sidebar').classList.toggle('collapsed'); 
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
     });
 </script>
 </body>

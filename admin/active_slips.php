@@ -10,6 +10,15 @@ require_once '../classes/database.php';
 $db = new Database();
 $conn = $db->getConnection();
 
+// Validate that the logged-in user actually exists in the db (handles truncated/restructured users database edge cases)
+$stmt_check_user = $conn->prepare("SELECT COUNT(*) FROM users WHERE id = ?");
+$stmt_check_user->execute([$_SESSION['user_id']]);
+if ($stmt_check_user->fetchColumn() == 0) {
+    session_destroy();
+    header("Location: ../index.php?error=SessionExpired");
+    exit;
+}
+
 $message = '';
 
 // --- PROCESS RETURNS ---
@@ -29,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
         // Loop through everything the admin inspected on the tray
         foreach ($item_statuses as $slip_item_id => $condition) {
             $a_id = $asset_ids[$slip_item_id];
-            
+
             // 1. Update the record on the slip
             $stmt_update_item->execute([$condition, $slip_item_id]);
 
@@ -69,9 +78,9 @@ if (count($active_slips) > 0) {
     // Get all slip IDs to query their items at once
     $slip_ids = array_column($active_slips, 'id');
     $placeholders = str_repeat('?,', count($slip_ids) - 1) . '?';
-    
+
     $query_items = "
-        SELECT si.*, a.unique_asset_code, c.category_name 
+        SELECT si.*, a.unique_asset_code, c.category_name
         FROM slip_items si
         JOIN equipment_assets a ON si.asset_id = a.id
         JOIN equipment_categories c ON a.category_id = c.id
@@ -135,7 +144,7 @@ if (count($active_slips) > 0) {
                                             <p class="text-muted small mb-0"><i class="bi bi-person-badge me-1"></i><?= htmlspecialchars($slip['student_id']) ?> &bull; <?= htmlspecialchars($slip['course_section']) ?></p>
                                         </div>
                                     </div>
-                                    
+
                                     <hr class="bg-light">
 
                                     <div class="mb-3 small text-muted">
@@ -147,7 +156,7 @@ if (count($active_slips) > 0) {
                                     <div class="bg-light rounded p-3 mb-4">
                                         <h6 class="fw-bold fs-6 mb-2">Items Borrowed:</h6>
                                         <ul class="list-unstyled small mb-0 font-monospace">
-                                            <?php 
+                                            <?php
                                             $items_for_this_slip = $slip_items[$slip['id']] ?? [];
                                             foreach ($items_for_this_slip as $item) {
                                                 echo "<li><i class='bi bi-dot'></i> <span class='text-primary fw-bold'>{$item['unique_asset_code']}</span> - {$item['category_name']}</li>";
@@ -187,7 +196,7 @@ if (count($active_slips) > 0) {
                 <div class="modal-body p-4">
                     <input type="hidden" name="action" value="process_return">
                     <input type="hidden" name="slip_id" value="<?= $slip['id'] ?>">
-                    
+
                     <div class="alert alert-info py-2 small mb-4">
                         <i class="bi bi-info-circle me-1"></i> Inspect the tray and log the condition of each item.
                     </div>
@@ -202,16 +211,16 @@ if (count($active_slips) > 0) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
+                                <?php
                                 $items = $slip_items[$slip['id']] ?? [];
-                                foreach ($items as $item): 
+                                foreach ($items as $item):
                                 ?>
                                     <tr>
                                         <td class="font-monospace fw-bold text-primary"><?= $item['unique_asset_code'] ?></td>
                                         <td class="small fw-medium"><?= htmlspecialchars($item['category_name']) ?></td>
                                         <td>
                                             <input type="hidden" name="asset_id[<?= $item['id'] ?>]" value="<?= $item['asset_id'] ?>">
-                                            
+
                                             <select name="item_status[<?= $item['id'] ?>]" class="form-select form-select-sm border-secondary" required>
                                                 <option value="Returned_Intact" selected>✅ Intact / Good</option>
                                                 <option value="Returned_Broken">❌ Broken / Damaged</option>
@@ -236,8 +245,8 @@ if (count($active_slips) > 0) {
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() { 
-        document.getElementById('sidebar').classList.toggle('collapsed'); 
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
     });
 
     // Function to open the correct modal
