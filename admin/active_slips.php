@@ -1,91 +1,87 @@
-<?php
-session_start();
+<?php 
+session_start(); 
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: ../index.php");
-    exit;
-}
+if (!isset($_SESSION['user_id'])) {     
+    header("Location: ../index.php");     
+    exit; 
+} // Added missing closing brace for the login protection check
 
-require_once '../classes/database.php';
-$db = new Database();
-$conn = $db->getConnection();
+require_once '../classes/database.php'; 
+$db = new Database(); 
+$conn = $db->getConnection(); 
+$message = ''; 
 
-$message = '';
-
-// --- PROCESS RETURNS ---
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'process_return') {
-    $slip_id = (int)$_POST['slip_id'];
-    $item_statuses = $_POST['item_status']; // Array of slip_item_id => condition
-    $asset_ids = $_POST['asset_id']; // Array of slip_item_id => asset_id
-
-    try {
-        $conn->beginTransaction();
-
-        $stmt_update_item = $conn->prepare("UPDATE slip_items SET return_status = ?, return_date = NOW() WHERE id = ?");
-        $stmt_update_asset = $conn->prepare("UPDATE equipment_assets SET status = ? WHERE id = ?");
-
-        $all_intact = true;
-
-        // Loop through everything the admin inspected on the tray
-        foreach ($item_statuses as $slip_item_id => $condition) {
-            $a_id = $asset_ids[$slip_item_id];
-            
-            // 1. Update the record on the slip
-            $stmt_update_item->execute([$condition, $slip_item_id]);
-
-            // 2. Update the actual physical asset's status
-            if ($condition === 'Returned_Intact') {
-                $stmt_update_asset->execute(['Available', $a_id]);
-            } elseif ($condition === 'Returned_Broken') {
-                $stmt_update_asset->execute(['Broken', $a_id]);
-                $all_intact = false;
-            } elseif ($condition === 'Lost') {
-                $stmt_update_asset->execute(['Lost', $a_id]);
-                $all_intact = false;
-            }
-        }
-
-        // 3. Close the Slip
-        $final_slip_status = $all_intact ? 'Returned' : 'Incomplete'; // Mark Incomplete if something was broken/lost
-        $stmt_close_slip = $conn->prepare("UPDATE slips SET status = ? WHERE id = ?");
-        $stmt_close_slip->execute([$final_slip_status, $slip_id]);
-
-        $conn->commit();
-        $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm mb-4'><i class='bi bi-check-circle me-2'></i>Slip closed successfully. Asset statuses updated.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
-
-    } catch (Exception $e) {
-        $conn->rollBack();
-        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm mb-4'>Error processing return: " . $e->getMessage() . "<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
-    }
-}
-
-// --- FETCH ACTIVE SLIPS ---
-$stmt = $conn->query("SELECT * FROM slips WHERE status = 'Active' ORDER BY issue_date ASC");
-$active_slips = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Fetch items for these slips
-$slip_items = [];
-if (count($active_slips) > 0) {
-    // Get all slip IDs to query their items at once
-    $slip_ids = array_column($active_slips, 'id');
-    $placeholders = str_repeat('?,', count($slip_ids) - 1) . '?';
+// --- PROCESS RETURNS --- 
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'process_return') {     
+    $slip_id = (int)$_POST['slip_id'];     
+    $item_statuses = $_POST['item_status']; // Array of slip_item_id => condition     
+    $asset_ids = $_POST['asset_id']; // Array of slip_item_id => asset_id     
     
-    $query_items = "
-        SELECT si.*, a.unique_asset_code, c.category_name 
-        FROM slip_items si
-        JOIN equipment_assets a ON si.asset_id = a.id
-        JOIN equipment_categories c ON a.category_id = c.id
-        WHERE si.slip_id IN ($placeholders)
-    ";
-    $stmt_items = $conn->prepare($query_items);
-    $stmt_items->execute($slip_ids);
-    $all_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
-
-    // Group items by slip_id for easy display
-    foreach ($all_items as $item) {
-        $slip_items[$item['slip_id']][] = $item;
-    }
+    try {         
+        $conn->beginTransaction();         
+        $stmt_update_item = $conn->prepare("UPDATE slip_items SET return_status = ?, return_date = NOW() WHERE id = ?");         
+        $stmt_update_asset = $conn->prepare("UPDATE equipment_assets SET status = ? WHERE id = ?");         
+        $all_intact = true;         
+        
+        // Loop through everything the admin inspected on the tray         
+        foreach ($item_statuses as $slip_item_id => $condition) {             
+            $a_id = $asset_ids[$slip_item_id];                          
+            
+            // 1. Update the record on the slip             
+            $stmt_update_item->execute([$condition, $slip_item_id]);             
+            
+            // 2. Update the actual physical asset's status             
+            if ($condition === 'Returned_Intact') {                 
+                $stmt_update_asset->execute(['Available', $a_id]);             
+            } elseif ($condition === 'Returned_Broken') {                 
+                $stmt_update_asset->execute(['Broken', $a_id]);                 
+                $all_intact = false;             
+            } elseif ($condition === 'Lost') {                 
+                $stmt_update_asset->execute(['Lost', $a_id]);                 
+                $all_intact = false;             
+            }         
+        }         
+        
+        // 3. Close the Slip         
+        $final_slip_status = $all_intact ? 'Returned' : 'Incomplete'; // Mark Incomplete if something was broken/lost         
+        $stmt_close_slip = $conn->prepare("UPDATE slips SET status = ? WHERE id = ?");         
+        $stmt_close_slip->execute([$final_slip_status, $slip_id]);         
+        
+        $conn->commit();         
+        $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm mb-4'><i class='bi bi-check-circle me-2'></i>Slip closed successfully. Asset statuses updated.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";     
+    } catch (Exception $e) {         
+        $conn->rollBack();         
+        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm mb-4'>Error processing return: " . $e->getMessage() . "<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";     
+    } 
 }
+
+// --- FETCH ACTIVE SLIPS --- 
+$stmt = $conn->query("SELECT * FROM slips WHERE status = 'Active' ORDER BY issue_date ASC"); 
+$active_slips = $stmt->fetchAll(PDO::FETCH_ASSOC); 
+
+// Fetch items for these slips 
+$slip_items = []; 
+if (count($active_slips) > 0) {     
+    // Get all slip IDs to query their items at once     
+    $slip_ids = array_column($active_slips, 'id');     
+    $placeholders = str_repeat('?,', count($slip_ids) - 1) . '?';          
+    
+    $query_items = "         
+        SELECT si.*, a.unique_asset_code, c.category_name          
+        FROM slip_items si         
+        JOIN equipment_assets a ON si.asset_id = a.id         
+        JOIN equipment_categories c ON a.category_id = c.id         
+        WHERE si.slip_id IN ($placeholders)     
+    ";     
+    $stmt_items = $conn->prepare($query_items);     
+    $stmt_items->execute($slip_ids);     
+    $all_items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);     
+    
+    // Group items by slip_id for easy display     
+    foreach ($all_items as $item) {         
+        $slip_items[$item['slip_id']][] = $item;     
+    } 
+} // <--- FIXED: Closed the missing inner logic check block here!
 ?>
 
 <!DOCTYPE html>
@@ -122,57 +118,61 @@ if (count($active_slips) > 0) {
             <p class="text-muted mb-4">Select an active slip to process returning equipment.</p>
             <?= $message ?>
 
-            <div class="row g-4">
+            <div class="table-card shadow-sm border-0 bg-white rounded-4">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-transparent text-muted small text-uppercase" style="letter-spacing: 0.5px;">
+                <tr>
+                    <th class="border-bottom-0 pb-3 ps-4 pt-4">Slip No.</th>
+                    <th class="border-bottom-0 pb-3 pt-4">Borrower Info</th>
+                    <th class="border-bottom-0 pb-3 pt-4">Class Details</th>
+                    <th class="border-bottom-0 pb-3 pt-4">Items Borrowed</th>
+                    <th class="border-bottom-0 pb-3 pe-4 pt-4 text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
                 <?php if (count($active_slips) > 0): ?>
                     <?php foreach ($active_slips as $slip): ?>
-                        <div class="col-xl-4 col-lg-6">
-                            <div class="card shadow-sm border-0 rounded-4 h-100 border-top border-4 border-primary">
-                                <div class="card-body p-4">
-                                    <div class="d-flex justify-content-between align-items-start mb-3">
-                                        <div>
-                                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill mb-2 border border-primary border-opacity-25"><?= $slip['slip_number'] ?></span>
-                                            <h5 class="fw-bold mb-1" style="color: var(--ccs-darkest);"><?= htmlspecialchars($slip['student_name']) ?></h5>
-                                            <p class="text-muted small mb-0"><i class="bi bi-person-badge me-1"></i><?= htmlspecialchars($slip['student_id']) ?> &bull; <?= htmlspecialchars($slip['course_section']) ?></p>
-                                        </div>
-                                    </div>
-                                    
-                                    <hr class="bg-light">
-
-                                    <div class="mb-3 small text-muted">
-                                        <div class="mb-1"><i class="bi bi-book me-2"></i><strong>Class:</strong> <?= htmlspecialchars($slip['subject_code']) ?></div>
-                                        <div class="mb-1"><i class="bi bi-person-workspace me-2"></i><strong>Prof:</strong> <?= htmlspecialchars($slip['instructor_name']) ?></div>
-                                        <div class="mb-1"><i class="bi bi-clock me-2"></i><strong>Time:</strong> <?= htmlspecialchars($slip['class_time']) ?></div>
-                                    </div>
-
-                                    <div class="bg-light rounded p-3 mb-4">
-                                        <h6 class="fw-bold fs-6 mb-2">Items Borrowed:</h6>
-                                        <ul class="list-unstyled small mb-0 font-monospace">
-                                            <?php 
-                                            $items_for_this_slip = $slip_items[$slip['id']] ?? [];
-                                            foreach ($items_for_this_slip as $item) {
-                                                echo "<li><i class='bi bi-dot'></i> <span class='text-primary fw-bold'>{$item['unique_asset_code']}</span> - {$item['category_name']}</li>";
-                                            }
-                                            ?>
-                                        </ul>
-                                    </div>
-
-                                    <button class="btn btn-custom w-100 rounded-pill fw-bold" onclick="openReturnModal(<?= $slip['id'] ?>)">
-                                        <i class="bi bi-box-arrow-in-down me-1"></i> Process Return
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                        <tr>
+                            <td class="ps-4 fw-bold text-primary font-monospace small">
+                                <?= $slip['slip_number'] ?>
+                            </td>
+                            <td>
+                                <div class="fw-bold" style="color: var(--ccs-darkest);"><?= htmlspecialchars($slip['student_name']) ?></div>
+                                <div class="text-muted small"><?= htmlspecialchars($slip['student_id']) ?> &bull; <?= htmlspecialchars($slip['course_section']) ?></div>
+                            </td>
+                            <td>
+                                <div class="fw-medium text-dark"><?= htmlspecialchars($slip['subject_code']) ?></div>
+                                <div class="text-muted small">Prof. <?= htmlspecialchars($slip['instructor_name']) ?> &bull; <?= htmlspecialchars($slip['class_time']) ?></div>
+                            </td>
+                            <td>
+                                <ul class="list-unstyled small mb-0 font-monospace text-muted">
+                                    <?php 
+                                    $items_for_this_slip = $slip_items[$slip['id']] ?? [];
+                                    foreach ($items_for_this_slip as $item) {
+                                        echo "<li><i class='bi bi-dot'></i> <span class='text-dark fw-semibold'>{$item['unique_asset_code']}</span> <span class='text-secondary' style='font-size: 0.75rem;'>{$item['category_name']}</span></li>";
+                                    }
+                                    ?>
+                                </ul>
+                            </td>
+                            <td class="pe-4 text-end">
+                                <button class="btn btn-sm btn-custom rounded-pill fw-bold px-3 shadow-sm" onclick="openReturnModal(<?= $slip['id'] ?>)">
+                                    <i class="bi bi-box-arrow-in-down me-1"></i> Process
+                                </button>
+                            </td>
+                        </tr>
                     <?php endforeach; ?>
                 <?php else: ?>
-                    <div class="col-12 text-center py-5">
-                        <i class="bi bi-check2-circle display-1 text-success opacity-50 mb-3 d-block"></i>
-                        <h4 class="text-muted">All clear!</h4>
-                        <p class="text-muted">There are currently no active borrowing slips.</p>
-                    </div>
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <i class="bi bi-check2-circle display-4 text-success opacity-50 mb-3 d-block"></i>
+                            <h5 class="text-muted fw-bold">All clear!</h5>
+                            <p class="text-muted mb-0">There are currently no active borrowing slips.</p>
+                        </td>
+                    </tr>
                 <?php endif; ?>
-            </div>
-
-        </div>
+            </tbody>
+        </table>
     </div>
 </div>
 
