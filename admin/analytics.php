@@ -74,8 +74,27 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
 }
 
 include '../includes/header.php';
-include '../includes/sidebar.php';
 ?>
+
+<div class="wrapper">
+    <?php include '../includes/sidebar.php'; ?>
+
+    <div class="main-content printable-analytics" id="mainContent">
+        <div class="topbar">
+            <div class="d-flex align-items-center">
+                <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
+                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">System Analytics</h5>
+            </div>
+            <div class="d-flex align-items-center">
+                <div class="text-end me-3 d-none d-sm-block">
+                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name'] ?? 'Admin') ?></div>
+                    <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
+                </div>
+                <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name'] ?? 'Admin') ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
+            </div>
+        </div>
+
+        <div class="content-area p-4 p-md-5">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -98,11 +117,11 @@ include '../includes/sidebar.php';
         padding: 0;
     }
 
-    .sidebar, .navbar, .content-wrapper > .container-fluid > .d-flex.justify-content-between.align-items-center.mb-4, .btn, .card-header, .card-body canvas {
+    .sidebar, .navbar, .main-content > .content-area > .d-flex.justify-content-between.align-items-center.mb-4, .btn, .card-header, .card-body canvas {
         display: none !important;
     }
 
-    .content-wrapper {
+    .main-content {
         margin-left: 0 !important;
         padding: 0 !important;
     }
@@ -115,8 +134,7 @@ include '../includes/sidebar.php';
 }
 </style>
 
-<div class="content-wrapper printable-analytics" style="margin-left: 260px; padding: 2rem;">
-    <div class="container-fluid">
+<div class="container-fluid">
         
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="m-0 fw-bolder" style="color: var(--ccs-darkest);">System Analytics</h3>
@@ -308,6 +326,12 @@ if(volumeData.length > 0) {
             }]
         },
         options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+}
+
+if (document.getElementById('sidebarToggle')) {
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
     });
 }
 </script>
