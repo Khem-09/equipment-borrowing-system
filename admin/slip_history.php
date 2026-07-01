@@ -96,10 +96,22 @@ if (count($history_slips) > 0) {
             
             <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
                 <div class="row gx-3 gy-3 align-items-center">
-                    <div class="col-lg-8">
+                    <div class="col-lg-5">
                         <p class="text-muted mb-0">A permanent ledger of all completed and incomplete borrowing transactions.</p>
                     </div>
-                    <div class="col-lg-auto d-flex justify-content-lg-end">
+                    <div class="col-lg-7 d-flex flex-wrap justify-content-lg-end gap-2">
+                        <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
+                            <i class="bi bi-search text-muted"></i>
+                            <input type="search" id="historySearch" class="form-control form-control-sm border-0 bg-transparent" placeholder="Search slips or student..." style="min-width: 220px;">
+                        </div>
+                        <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
+                            <span class="small text-muted">Status:</span>
+                            <select id="historyStatusFilter" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 120px;">
+                                <option value="">All Status</option>
+                                <option value="returned">Completed</option>
+                                <option value="incomplete">Incomplete</option>
+                            </select>
+                        </div>
                         <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
                             <span class="small text-muted">Rows:</span>
                             <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
@@ -129,7 +141,7 @@ if (count($history_slips) > 0) {
                         <tbody>
                             <?php if (count($history_slips) > 0): ?>
                                 <?php foreach ($history_slips as $row): ?>
-                                <tr>
+                                <tr data-status="<?= strtolower($row['status']) ?>" data-search="<?= htmlspecialchars(strtolower($row['slip_number'] . ' ' . $row['student_name'] . ' ' . $row['student_id'] . ' ' . $row['course_section'] . ' ' . $row['subject_code'] . ' ' . $row['instructor_name']), ENT_QUOTES, 'UTF-8') ?>">
                                     <td class="ps-4 fw-bolder font-monospace text-primary">
                                         <?= htmlspecialchars($row['slip_number']) ?>
                                     </td>
@@ -297,16 +309,19 @@ if (count($history_slips) > 0) {
     const paginationPrev = document.getElementById('paginationPrev');
     const paginationNext = document.getElementById('paginationNext');
     const paginationInfo = document.getElementById('paginationInfo');
-    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+    const historySearch = document.getElementById('historySearch');
+    const historyStatusFilter = document.getElementById('historyStatusFilter');
+    const tableRows = Array.from(document.querySelectorAll('.table-card .table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
     let currentPage = 1;
     let rowsPerPage = Number(paginationSize?.value || 10);
 
     function updatePagination() {
-        const totalRows = tableRows.length;
+        const visibleRows = tableRows.filter(row => row.style.display !== 'none');
+        const totalRows = visibleRows.length;
         const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
         currentPage = Math.min(currentPage, totalPages);
 
-        tableRows.forEach((row, index) => {
+        visibleRows.forEach((row, index) => {
             const start = (currentPage - 1) * rowsPerPage;
             row.style.display = index >= start && index < start + rowsPerPage ? '' : 'none';
         });
@@ -316,6 +331,22 @@ if (count($history_slips) > 0) {
         paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
         paginationPrev.disabled = currentPage === 1;
         paginationNext.disabled = currentPage === totalPages;
+    }
+
+    function filterHistoryRows() {
+        const searchTerm = (historySearch?.value || '').toLowerCase().trim();
+        const statusTerm = (historyStatusFilter?.value || '').toLowerCase().trim();
+
+        tableRows.forEach((row) => {
+            const searchText = (row.getAttribute('data-search') || '').toLowerCase();
+            const status = (row.getAttribute('data-status') || '').toLowerCase();
+            const matchesSearch = searchTerm === '' || searchText.includes(searchTerm);
+            const matchesStatus = statusTerm === '' || status === statusTerm;
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        });
+
+        currentPage = 1;
+        updatePagination();
     }
 
     if (paginationSize) {
@@ -340,6 +371,14 @@ if (count($history_slips) > 0) {
             currentPage += 1;
             updatePagination();
         });
+    }
+
+    if (historySearch) {
+        historySearch.addEventListener('input', filterHistoryRows);
+    }
+
+    if (historyStatusFilter) {
+        historyStatusFilter.addEventListener('change', filterHistoryRows);
     }
 
     updatePagination();

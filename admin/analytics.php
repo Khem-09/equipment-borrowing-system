@@ -144,9 +144,9 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
                 <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="m-0 fw-bolder" style="color: var(--ccs-darkest);">System Analytics</h3>
             <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary fw-medium" onclick="window.print()">
+                <!-- <button type="button" class="btn btn-outline-secondary fw-medium" onclick="window.print()">
                     <i class="bi bi-printer"></i> Print
-                </button>
+                </button> -->
                 <?php
                 $exportQuery = $_GET;
                 $exportQuery['export'] = '1';
