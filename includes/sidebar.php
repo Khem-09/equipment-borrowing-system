@@ -15,6 +15,13 @@
                     <span class="fw-medium">Dashboard</span>
                 </a>
             </li>
+
+            <li class="nav-item mb-1 px-3">
+                <a href="analytics.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 transition-all hover-bg-light">
+                    <i class="bi bi-bar-chart-line fs-5 text-muted"></i>
+                    <span class="fw-medium">Analytics</span>
+                </a>
+            </li>
             
             <li class="nav-item mb-1 px-3 mt-4">
                 <small class="text-muted fw-bold text-uppercase px-3" style="font-size: 0.7rem; letter-spacing: 1px;">Kiosk Operations</small>
