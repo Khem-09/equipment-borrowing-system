@@ -42,6 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
         try {
             $conn->beginTransaction();
 
+            // Restrict checkout if the student has overdue/incomplete returns
+            $stmt_check_overdue = $conn->prepare("SELECT COUNT(*) FROM slips WHERE student_id = ? AND status = 'Incomplete'");
+            $stmt_check_overdue->execute([$student_id]);
+            if ($stmt_check_overdue->fetchColumn() > 0) {
+                throw new Exception("Student has overdue items (incomplete or damaged returns) and cannot borrow equipment at this time.");
+            }
+
             $slip_number = 'SLP-' . date('Ymd-His');
 
             $stmt = $conn->prepare("INSERT INTO slips (slip_number, student_id, student_name, course_section, subject_code, instructor_name, class_time, processed_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
@@ -93,8 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
 // --- FETCH UNIQUE RECENT BORROWERS FOR THE TABLE ---
 $borrowers_query = "SELECT s.student_id, s.student_name, s.course_section, s.subject_code AS last_subject, s.instructor_name AS last_instructor,
                            CASE
-                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Borrowed') > 0 THEN 'Active'
-                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Incomplete') > 0 THEN 'Liability'
+                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Active') > 0 THEN 'Active'
+                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Incomplete') > 0 THEN 'Overdue'
                                ELSE 'Cleared'
                            END AS borrower_status
                     FROM slips s
@@ -215,7 +222,7 @@ foreach ($available_assets as $asset) {
                             <option value="">All Statuses</option>
                             <option value="Active">Active (Borrowed)</option>
                             <option value="Cleared">Cleared (Returned)</option>
-                            <option value="Liability">Liability (Broken/Missing)</option>
+                            <option value="Overdue">Overdue (Incomplete/Damaged)</option>
                         </select>
                     </div>
 
@@ -247,7 +254,7 @@ foreach ($available_assets as $asset) {
                             <tbody class="cursor-pointer" id="borrowersTableBody">
                                 <?php if (count($borrowers) > 0): ?>
                                     <?php foreach ($borrowers as $row): ?>
-                                    <tr onclick="autofillBorrower('<?= htmlspecialchars($row['student_id'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['student_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['course_section'], ENT_QUOTES) ?>')"
+                                    <tr onclick="autofillBorrower('<?= htmlspecialchars($row['student_id'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['student_name'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['course_section'], ENT_QUOTES) ?>', '<?= htmlspecialchars($row['borrower_status']) ?>')"
                                         data-status="<?= htmlspecialchars($row['borrower_status']) ?>"
                                         data-instructor="<?= htmlspecialchars($row['last_instructor'], ENT_QUOTES) ?>">
                                         <td class="ps-4 font-monospace text-secondary student-id-col">
@@ -268,8 +275,8 @@ foreach ($available_assets as $asset) {
                                         <td class="pe-4 text-center student-status-col">
                                             <?php if ($row['borrower_status'] === 'Active'): ?>
                                                 <span class="badge bg-danger rounded-pill px-3">Active</span>
-                                            <?php elseif ($row['borrower_status'] === 'Liability'): ?>
-                                                <span class="badge bg-warning text-dark rounded-pill px-3">Liability</span>
+                                            <?php elseif ($row['borrower_status'] === 'Overdue'): ?>
+                                                <span class="badge bg-warning text-dark rounded-pill px-3">Overdue</span>
                                             <?php else: ?>
                                                 <span class="badge bg-success rounded-pill px-3">Cleared</span>
                                             <?php endif; ?>
@@ -465,22 +472,36 @@ foreach ($available_assets as $asset) {
                 <!-- PRINT CSS OVERLAY -->
                 <style>
                     @media print {
-                        body * {
-                            visibility: hidden;
-                        }
-                        #generatedSlipContentPrintable, #generatedSlipContentPrintable * {
-                            visibility: visible;
-                        }
-                        #generatedSlipContentPrintable {
-                            position: fixed;
-                            left: 0;
-                            top: 0;
-                            width: 100%;
-                            background: white;
-                            padding: 20px;
+                        .wrapper, #browseModal, .modal-backdrop, .btn-close {
+                            display: none !important;
                         }
                         .no-print {
                             display: none !important;
+                        }
+                        #generatedSlipModal {
+                            position: absolute;
+                            left: 0;
+                            top: 0;
+                            width: 100%;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            background: transparent !important;
+                            box-shadow: none !important;
+                            border: none !important;
+                        }
+                        #generatedSlipModal .modal-dialog {
+                            max-width: 100% !important;
+                            width: 100% !important;
+                            margin: 0 !important;
+                            padding: 0 !important;
+                        }
+                        #generatedSlipModal .modal-content {
+                            box-shadow: none !important;
+                            border: none !important;
+                            background: transparent !important;
+                        }
+                        #generatedSlipContentPrintable {
+                            padding: 10px;
                         }
                     }
                     .receipt-dash {
@@ -603,7 +624,12 @@ foreach ($available_assets as $asset) {
     }
 
     // Autofill Borrower details on row click and redirect/switch views
-    function autofillBorrower(studentId, fullName, courseSection) {
+    function autofillBorrower(studentId, fullName, courseSection, status) {
+        if (status === 'Overdue') {
+            alert("Blocked: This student has OVERDUE items (damaged or incomplete returns) and is restricted from borrowing new equipment until cleared.");
+            return;
+        }
+
         document.getElementById('student_id_input').value = studentId;
         document.getElementById('student_name_input').value = fullName;
         document.getElementById('course_section_input').value = courseSection;
@@ -838,6 +864,21 @@ foreach ($available_assets as $asset) {
 
     if (classStartTime) classStartTime.addEventListener('change', updateClassTimeString);
     if (classEndTime) classEndTime.addEventListener('change', updateClassTimeString);
+
+    // Map student ID to status to restrict manual entry of overdue students
+    const borrowerStatusMap = <?= json_encode(array_column($borrowers, 'borrower_status', 'student_id')) ?>;
+
+    const slipForm = document.getElementById('slipForm');
+    if (slipForm) {
+        slipForm.addEventListener('submit', function(e) {
+            const enteredId = document.getElementById('student_id_input').value.trim();
+            if (borrowerStatusMap[enteredId] === 'Overdue') {
+                e.preventDefault();
+                alert("Blocked: This student has OVERDUE items (damaged or incomplete returns) and is restricted from borrowing new equipment until cleared.");
+                return false;
+            }
+        });
+    }
 
     // Auto-trigger generated slip receipt modal if present
     <?php if ($generated_slip): ?>
