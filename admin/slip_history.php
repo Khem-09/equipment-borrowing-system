@@ -99,12 +99,11 @@ sort($subjects);
             <?= $message ?>
 
             <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
-                <div class="row g-3 align-items-center mb-3">
-                    <div class="col">
-                        <h5 class="fw-bold mb-1 text-dark">Borrowing History Ledger</h5>
-                        <p class="text-muted mb-0 small">A permanent ledger of all completed and incomplete borrowing transactions.</p>
+                <div class="row gx-3 gy-3 align-items-center">
+                    <div class="col-lg-8">
+                        <p class="text-muted mb-0">A permanent ledger of all completed and incomplete borrowing transactions.</p>
                     </div>
-                    <div class="col-auto">
+                    <div class="col-lg-auto d-flex justify-content-lg-end">
                         <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
                             <span class="small text-muted">Rows:</span>
                             <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
@@ -178,14 +177,7 @@ sort($subjects);
                         <tbody>
                             <?php if (count($history_slips) > 0): ?>
                                 <?php foreach ($history_slips as $row): ?>
-                                <tr data-slip-number="<?= htmlspecialchars($row['slip_number']) ?>"
-                                    data-student-id="<?= htmlspecialchars($row['student_id']) ?>"
-                                    data-student-name="<?= htmlspecialchars($row['student_name']) ?>"
-                                    data-instructor-name="<?= htmlspecialchars($row['instructor_name']) ?>"
-                                    data-subject-code="<?= htmlspecialchars($row['subject_code']) ?>"
-                                    data-status="<?= htmlspecialchars($row['status']) ?>"
-                                    data-issue-date="<?= date('Y-m-d', strtotime($row['issue_date'])) ?>"
-                                    data-items="<?= htmlspecialchars(implode(' ', array_column($slip_items[$row['id']] ?? [], 'unique_asset_code'))) ?>">
+                                <tr>
                                     <td class="ps-4 fw-bolder font-monospace text-primary">
                                         <?= htmlspecialchars($row['slip_number']) ?>
                                     </td>
@@ -366,70 +358,12 @@ sort($subjects);
     const paginationPrev = document.getElementById('paginationPrev');
     const paginationNext = document.getElementById('paginationNext');
     const paginationInfo = document.getElementById('paginationInfo');
-
-    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => {
-        return row.id !== 'noHistoryResultsRow' && (!row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
-    });
-
+    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
     let currentPage = 1;
     let rowsPerPage = Number(paginationSize?.value || 10);
 
-    function filterAndPaginate() {
-        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
-        const subject = subjectFilter ? subjectFilter.value.toLowerCase().trim() : '';
-        const status = statusFilter ? statusFilter.value.trim() : '';
-        const startDate = startDateInput ? startDateInput.value : '';
-        const endDate = endDateInput ? endDateInput.value : '';
-
-        // First, resolve row visibilities
-        const visibleRows = [];
-
-        tableRows.forEach(row => {
-            const slipNum = (row.getAttribute('data-slip-number') || '').toLowerCase();
-            const studentId = (row.getAttribute('data-student-id') || '').toLowerCase();
-            const studentName = (row.getAttribute('data-student-name') || '').toLowerCase();
-            const instructor = (row.getAttribute('data-instructor-name') || '').toLowerCase();
-            const subjectCode = (row.getAttribute('data-subject-code') || '').toLowerCase();
-            const rStatus = row.getAttribute('data-status') || '';
-            const issueDateVal = row.getAttribute('data-issue-date') || '';
-            const itemsVal = (row.getAttribute('data-items') || '').toLowerCase();
-
-            // Check if matches query
-            const matchesQuery = query === '' ||
-                                 slipNum.includes(query) ||
-                                 studentId.includes(query) ||
-                                 studentName.includes(query) ||
-                                 instructor.includes(query) ||
-                                 subjectCode.includes(query) ||
-                                 itemsVal.includes(query);
-
-            const matchesSubject = subject === '' || subjectCode === subject;
-            const matchesStatus = status === '' || rStatus === status;
-
-            let matchesDate = true;
-            if (startDate) {
-                matchesDate = matchesDate && (issueDateVal >= startDate);
-            }
-            if (endDate) {
-                matchesDate = matchesDate && (issueDateVal <= endDate);
-            }
-
-            if (matchesQuery && matchesSubject && matchesStatus && matchesDate) {
-                visibleRows.push(row);
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
-        // Toggle search fallback message
-        if (visibleRows.length === 0) {
-            if (noResultsRow) noResultsRow.classList.remove('d-none');
-        } else {
-            if (noResultsRow) noResultsRow.classList.add('d-none');
-        }
-
-        // Apply pagination on visible rows only
-        const totalRows = visibleRows.length;
+    function updatePagination() {
+        const totalRows = tableRows.length;
         const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
         currentPage = Math.min(currentPage, totalPages);
 
@@ -440,23 +374,10 @@ sort($subjects);
 
         const startEntry = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
         const endEntry = Math.min(totalRows, currentPage * rowsPerPage);
-
-        if (paginationInfo) {
-            paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
-        }
-        if (paginationPrev) {
-            paginationPrev.disabled = (currentPage === 1);
-        }
-        if (paginationNext) {
-            paginationNext.disabled = (currentPage === totalPages);
-        }
+        paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
+        paginationPrev.disabled = currentPage === 1;
+        paginationNext.disabled = currentPage === totalPages;
     }
-
-    if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
-    if (subjectFilter) subjectFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
-    if (statusFilter) statusFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
-    if (startDateInput) startDateInput.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
-    if (endDateInput) endDateInput.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
 
     if (paginationSize) {
         paginationSize.addEventListener('change', function() {
@@ -480,6 +401,14 @@ sort($subjects);
             currentPage += 1;
             filterAndPaginate();
         });
+    }
+
+    if (historySearch) {
+        historySearch.addEventListener('input', filterHistoryRows);
+    }
+
+    if (historyStatusFilter) {
+        historyStatusFilter.addEventListener('change', filterHistoryRows);
     }
 
     filterAndPaginate();
