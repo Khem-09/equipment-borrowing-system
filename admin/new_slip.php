@@ -87,7 +87,7 @@ $borrowers = $borrowers_stmt->fetchAll(PDO::FETCH_ASSOC);
 // --- FETCH AVAILABLE ASSETS ---
 $query = "SELECT a.id, a.unique_asset_code, c.category_name
           FROM equipment_assets a
-          JOIN equipment_categories c ON a.specification_id = c.id
+          JOIN equipment_categories c ON a.category_id = c.id
           WHERE a.status = 'Available'
           ORDER BY c.category_name ASC, a.unique_asset_code ASC";
 $stmt = $conn->query($query);
