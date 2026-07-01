@@ -201,58 +201,61 @@ foreach ($available_assets as $asset) {
 
             <!-- Table View Container -->
             <div id="tableViewContainer" class="<?= $show_form ? 'd-none' : '' ?>">
-                <div class="mb-4">
-                    <h4 class="fw-bold mb-1" style="color: var(--ccs-darkest);">Quick Borrowers Directory</h4>
-                    <p class="text-muted small mb-0">Select any previous borrower below to start checkout, or click "New Borrowing Slip" to register a new borrower.</p>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div class="input-group shadow-sm" style="max-width: 360px;">
-                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="borrowerSearch" class="form-control border-start-0 ps-0" placeholder="Search ID, Name..." style="font-size: 0.9rem;">
-                    </div>
-                    <button type="button" id="btnNewSlip" class="btn btn-custom rounded-pill px-4 shadow-sm">
-                        <i class="bi bi-file-earmark-plus me-1"></i> New Borrowing Slip
-                    </button>
-                </div>
-
-                <!-- Filters Section -->
-                <div class="card border-0 shadow-sm bg-white p-3 mb-4 rounded-3 d-flex flex-row flex-wrap align-items-center gap-4">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="text-muted small fw-bold text-uppercase" style="letter-spacing: 0.5px; font-size: 0.75rem;"><i class="bi bi-funnel me-1"></i>Filter by</span>
+                <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
+                    <div class="row g-3 align-items-center mb-3">
+                        <div class="col">
+                            <h5 class="fw-bold mb-1 text-dark">Quick Borrowers Directory</h5>
+                            <p class="text-muted mb-0 small">Select any previous borrower below to start checkout, or register a new transaction slip.</p>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" id="btnNewSlip" class="btn btn-custom rounded-pill px-4 shadow-sm">
+                                <i class="bi bi-file-earmark-plus me-1"></i> New Borrowing Slip
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Course Filter Dropdown -->
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="courseFilter" class="small text-secondary mb-0">Course:</label>
-                        <select id="courseFilter" class="form-select form-select-sm shadow-sm" style="min-width: 180px;">
-                            <option value="">All Courses & Sections</option>
-                            <?php foreach($courses as $c): ?>
-                                <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <div class="row g-3">
+                        <!-- Search Bar -->
+                        <div class="col-lg-4 col-md-12">
+                            <label for="borrowerSearch" class="form-label text-muted small fw-bold mb-1">Search</label>
+                            <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden border">
+                                <span class="input-group-text bg-light border-0 text-muted"><i class="bi bi-search"></i></span>
+                                <input type="text" id="borrowerSearch" class="form-control border-0 bg-light-time" placeholder="Search ID, Name...">
+                            </div>
+                        </div>
 
-                    <!-- Status Filter Dropdown -->
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="statusFilter" class="small text-secondary mb-0">Status:</label>
-                        <select id="statusFilter" class="form-select form-select-sm shadow-sm" style="min-width: 140px;">
-                            <option value="">All Statuses</option>
-                            <option value="Active">Active (Borrowed)</option>
-                            <option value="Cleared">Cleared (Returned)</option>
-                            <option value="Overdue">Overdue (Incomplete/Damaged)</option>
-                        </select>
-                    </div>
+                        <!-- Course Filter -->
+                        <div class="col-lg-3 col-md-4">
+                            <label for="courseFilter" class="form-label text-muted small fw-bold mb-1">Course & Section</label>
+                            <select id="courseFilter" class="form-select form-select-sm shadow-sm rounded-pill border">
+                                <option value="">All Courses & Sections</option>
+                                <?php foreach($courses as $c): ?>
+                                    <option value="<?= htmlspecialchars($c) ?>"><?= htmlspecialchars($c) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
-                    <!-- Instructor Filter Dropdown -->
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="instructorFilter" class="small text-secondary mb-0">Instructor:</label>
-                        <select id="instructorFilter" class="form-select form-select-sm shadow-sm" style="min-width: 180px;">
-                            <option value="">All Instructors</option>
-                            <?php foreach($instructors as $inst): ?>
-                                <option value="<?= htmlspecialchars($inst) ?>"><?= htmlspecialchars($inst) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <!-- Status Filter -->
+                        <div class="col-lg-2 col-md-4">
+                            <label for="statusFilter" class="form-label text-muted small fw-bold mb-1">Status</label>
+                            <select id="statusFilter" class="form-select form-select-sm shadow-sm rounded-pill border">
+                                <option value="">All Statuses</option>
+                                <option value="Active">Active (Borrowed)</option>
+                                <option value="Cleared">Cleared (Returned)</option>
+                                <option value="Overdue">Overdue (Incomplete/Damaged)</option>
+                            </select>
+                        </div>
+
+                        <!-- Instructor Filter -->
+                        <div class="col-lg-3 col-md-4">
+                            <label for="instructorFilter" class="form-label text-muted small fw-bold mb-1">Instructor</label>
+                            <select id="instructorFilter" class="form-select form-select-sm shadow-sm rounded-pill border">
+                                <option value="">All Instructors</option>
+                                <?php foreach($instructors as $inst): ?>
+                                    <option value="<?= htmlspecialchars($inst) ?>"><?= htmlspecialchars($inst) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
