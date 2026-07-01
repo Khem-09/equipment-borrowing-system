@@ -105,16 +105,29 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <div class="content-area p-4 p-md-5">
             
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-                <p class="text-muted mb-0">Register specific items using their sticker IDs/Barcodes.</p>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="input-group shadow-sm" style="max-width: 300px;">
-                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="tableSearchInput" class="form-control border-start-0 ps-0" placeholder="Search assets...">
+            <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
+                <div class="row gx-3 gy-3 align-items-center">
+                    <div class="col-lg-7">
+                        <p class="text-muted mb-3">Register specific items using their sticker IDs/Barcodes.</p>
+                        <div class="input-group shadow-sm rounded-pill overflow-hidden" style="max-width: 100%;">
+                            <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" id="tableSearchInput" class="form-control border-0 ps-0" placeholder="Search assets...">
+                        </div>
                     </div>
-                    <button class="btn btn-custom rounded-pill px-4 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addAssetModal">
-                        <i class="bi bi-upc-scan me-1"></i> Register New Asset
-                    </button>
+                    <div class="col-lg-auto d-flex flex-wrap align-items-center gap-2 justify-content-lg-end">
+                        <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
+                            <span class="small text-muted">Rows:</span>
+                            <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-custom rounded-pill px-4 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                            <i class="bi bi-upc-scan me-1"></i> Register New Asset
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -169,20 +182,13 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                         </tbody>
                     </table>
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 p-3 border-top">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 p-3 border-top">
                         <div class="text-muted small" id="paginationInfo">Showing 0 to 0 of 0 entries</div>
                         <div class="d-flex flex-wrap align-items-center gap-2">
-                            <label class="mb-0 small text-muted">Rows:</label>
-                            <select id="paginationSize" class="form-select form-select-sm w-auto" style="min-width: 90px; max-width: 120px;">
-                                <option value="5">5</option>
-                                <option value="10" selected>10</option>
-                                <option value="20">20</option>
-                                <option value="50">50</option>
-                            </select>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationPrev">Previous</button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationNext">Next</button>
-                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationPrev">Previous</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationNext">Next</button>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
