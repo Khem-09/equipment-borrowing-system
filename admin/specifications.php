@@ -83,7 +83,7 @@ $specifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <link href="../assets/bootstrap/icons/bootstrap-icons.css" rel="stylesheet">
     <link href="../assets/css/style.css" rel="stylesheet">
 </head>
-<body class="bg-light">
+<body>
 
 <div class="wrapper">
     <?php include '../includes/sidebar.php'; ?>
@@ -92,12 +92,12 @@ $specifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         <div class="topbar">
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
-                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Manage Specifications</h5>
+                <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
+                <h5 class="m-0 fw-bold">Manage Specifications</h5>
             </div>
             <div class="d-flex align-items-center">
                 <div class="text-end me-3 d-none d-sm-block">
-                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name'] ?? 'Admin') ?></div>
+                    <div class="fw-bold" style="font-size: 0.9rem;"><?= htmlspecialchars($_SESSION['full_name'] ?? 'Admin') ?></div>
                     <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
                 </div>
                 <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name'] ?? 'Admin') ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">

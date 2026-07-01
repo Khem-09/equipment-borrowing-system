@@ -1,4 +1,9 @@
 <?php
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../index.php");
+    exit;
+}
 require_once '../classes/database.php';
 require_once '../classes/analytics.php';
 
@@ -73,52 +78,70 @@ if (isset($_GET['export']) && $_GET['export'] === '1') {
     exit;
 }
 
-include '../includes/header.php';
-include '../includes/sidebar.php';
 ?>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-@media print {
-    body * {
-        visibility: hidden;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics | LabBorrow</title>
+    <link href="../assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="../assets/bootstrap/icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="../assets/css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .printable-analytics, .printable-analytics * {
+            visibility: visible;
+        }
+        .printable-analytics {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .sidebar, .navbar, .topbar, .btn, .card-header, .card-body canvas, form {
+            display: none !important;
+        }
+        .main-content {
+            margin-left: 0 !important;
+            padding: 0 !important;
+        }
+        .card {
+            box-shadow: none !important;
+            border: 1px solid #dee2e6 !important;
+            break-inside: avoid;
+        }
     }
-
-    .printable-analytics, .printable-analytics * {
-        visibility: visible;
-    }
-
-    .printable-analytics {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-    }
-
-    .sidebar, .navbar, .content-wrapper > .container-fluid > .d-flex.justify-content-between.align-items-center.mb-4, .btn, .card-header, .card-body canvas {
-        display: none !important;
-    }
-
-    .content-wrapper {
-        margin-left: 0 !important;
-        padding: 0 !important;
-    }
-
-    .card {
-        box-shadow: none !important;
-        border: 1px solid #dee2e6 !important;
-        break-inside: avoid;
-    }
-}
-</style>
-
-<div class="content-wrapper printable-analytics" style="margin-left: 260px; padding: 2rem;">
-    <div class="container-fluid">
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <?php include '../includes/sidebar.php'; ?>
         
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="main-content" id="mainContent">
+            <div class="topbar">
+                <div class="d-flex align-items-center">
+                    <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
+                    <h5 class="m-0 fw-bold">System Analytics</h5>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="text-end me-3 d-none d-sm-block">
+                        <div class="fw-bold" style="font-size: 0.9rem;"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
+                        <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
+                    </div>
+                    <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
+                </div>
+            </div>
+
+            <div class="content-area p-4 p-md-5 printable-analytics">
+                
+                <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="m-0 fw-bolder" style="color: var(--ccs-darkest);">System Analytics</h3>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-outline-secondary fw-medium" onclick="window.print()">
@@ -179,7 +202,7 @@ include '../includes/sidebar.php';
                     </div>
 
                     <div class="col-md-3 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary w-100 fw-medium" style="background-color: var(--ccs-primary); border-color: var(--ccs-primary);">
+                        <button type="submit" class="btn btn-custom w-100 fw-medium" style="background-color: var(--ccs-primary); border-color: var(--ccs-primary);">
                             <i class="bi bi-funnel-fill"></i> Filter
                         </button>
                         <?php if(array_filter($currentFilters)): ?>
@@ -312,4 +335,15 @@ if(volumeData.length > 0) {
 }
 </script>
 
-<?php include '../includes/footer.php'; ?>
+            </div> <!-- End content-area -->
+        </div> <!-- End main-content -->
+    </div> <!-- End wrapper -->
+
+    <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function() { 
+            document.getElementById('sidebar').classList.toggle('collapsed'); 
+        });
+    </script>
+</body>
+</html>

@@ -43,53 +43,35 @@ $recent_slips = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
     <link href="../assets/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="../assets/bootstrap/icons/bootstrap-icons.css" rel="stylesheet">
     <link href="../assets/css/style.css" rel="stylesheet">
-    
-    <style>
-        .metric-card {
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            border: none;
-            border-radius: 12px;
-        }
-        .metric-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
-        }
-        .icon-box {
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
-            font-size: 1.5rem;
-        }
-        .icon-box {
-        width: 48px;
-        height: 48px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
-        font-size: 1.5rem;
-        background-color: rgba(var(--bs-primary-rgb), 0.1); /* Use RGB variables for better blending */
-        color: var(--bs-primary);
-    }
-    </style>
 </head>
-<body class="bg-light">
+<body>
+    <div class="wrapper">
+        <?php include '../includes/sidebar.php'; ?>
 
-    <?php include '../includes/header.php'; ?>
-    <?php include '../includes/sidebar.php'; ?>
-
-    <main class="container-fluid py-4 px-4" style="margin: 20px 200px 0 260px; width: calc(100% - 250px);">
-        
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h2 class="fw-bold mb-0" style="color: var(--ccs-darkest);">Dashboard</h2>
-                <p class="text-muted small mb-0">Overview of your equipment and borrowing activities.</p>
+        <div class="main-content" id="mainContent">
+            <div class="topbar">
+                <div class="d-flex align-items-center">
+                    <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
+                    <h5 class="m-0 fw-bold">Dashboard</h5>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="text-end me-3 d-none d-sm-block">
+                        <div class="fw-bold" style="font-size: 0.9rem;"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
+                        <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
+                    </div>
+                    <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
+                </div>
             </div>
-            <p class="text-muted small mb-0"><i class="bi bi-calendar3 me-1"></i> <?= date('F j, Y') ?></p>
-        </div>
+
+            <div class="content-area p-4 p-md-5">
+                
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="fw-bold mb-0">Overview</h2>
+                        <p class="text-muted small mb-0">Equipment and borrowing activities.</p>
+                    </div>
+                    <div class="badge bg-white text-dark shadow-sm px-3 py-2 border"><i class="bi bi-calendar3 me-1"></i> <?= date('F j, Y') ?></div>
+                </div>
 
         <div class="row g-4 mb-4">
             <div class="col-xl-3 col-sm-6">
@@ -195,7 +177,7 @@ $recent_slips = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
                         <h6 class="fw-bold text-primary mb-4"><i class="bi bi-lightning-charge me-2"></i>Quick Actions</h6>
                         
                         <div class="d-grid gap-3">
-                            <a href="new_slip.php" class="btn btn-primary rounded-pill py-2 shadow-sm text-start ps-4 fw-medium">
+                            <a href="new_slip.php" class="btn btn-custom rounded-pill py-2 shadow-sm text-start ps-4 fw-medium">
                                 <i class="bi bi-plus-circle me-2"></i> Create New Slip
                             </a>
                             <a href="active_slips.php" class="btn bg-white text-primary border-0 rounded-pill py-2 shadow-sm text-start ps-4 fw-medium">
@@ -210,8 +192,15 @@ $recent_slips = $stmt_recent->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
-    </main>
+            </div> <!-- End content-area -->
+        </div> <!-- End main-content -->
+    </div> <!-- End wrapper -->
 
     <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('sidebarToggle').addEventListener('click', function() { 
+            document.getElementById('sidebar').classList.toggle('collapsed'); 
+        });
+    </script>
 </body>
 </html>

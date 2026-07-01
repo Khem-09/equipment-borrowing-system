@@ -1,76 +1,71 @@
-<nav id="sidebar" class="sidebar bg-white shadow-sm border-end h-100 position-fixed" style="width: 260px; z-index: 1000; top: 0; left: 0; transition: 0.3s;">
-    <div class="sidebar-header p-4 border-bottom d-flex align-items-center gap-3">
-        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: rgba(31, 125, 83, 0.1);">
-            <i class="bi bi-flask-fill fs-4" style="color: var(--ccs-primary);"></i>
+<nav id="sidebar" class="sidebar">
+    <div class="sidebar-header d-flex align-items-center gap-3">
+        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background-color: rgba(43, 192, 130, 0.15);">
+            <i class="bi bi-flask-fill fs-4" style="color: var(--ccs-accent);"></i>
         </div>
-        <h5 class="m-0 fw-bolder" style="color: var(--ccs-darkest); letter-spacing: 0.5px;">LabBorrow</h5>
+        <h5 class="m-0 fw-bolder text-white" style="letter-spacing: 0.5px;">LabBorrow</h5>
     </div>
     
-    <div class="sidebar-body py-3 overflow-auto" style="height: calc(100% - 160px);">
+    <div class="sidebar-body overflow-auto">
         <ul class="nav flex-column mb-auto">
             
-            <li class="nav-item mb-1 px-3">
-                <a href="dashboard.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 transition-all hover-bg-light">
-                    <i class="bi bi-grid fs-5 text-muted"></i>
-                    <span class="fw-medium">Dashboard</span>
+            <li class="nav-item mb-1">
+                <a href="dashboard.php" class="nav-link-sidebar">
+                    <i class="bi bi-grid fs-5"></i>
+                    <span class="fw-medium menu-text">Dashboard</span>
                 </a>
             </li>
 
-            <li class="nav-item mb-1 px-3">
-                <a href="analytics.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 transition-all hover-bg-light">
-                    <i class="bi bi-bar-chart-line fs-5 text-muted"></i>
-                    <span class="fw-medium">Analytics</span>
+            <li class="nav-item mb-1">
+                <a href="analytics.php" class="nav-link-sidebar">
+                    <i class="bi bi-bar-chart-line fs-5"></i>
+                    <span class="fw-medium menu-text">Analytics</span>
                 </a>
             </li>
             
-            <li class="nav-item mb-1 px-3 mt-4">
-                <small class="text-muted fw-bold text-uppercase px-3" style="font-size: 0.7rem; letter-spacing: 1px;">Kiosk Operations</small>
+            <li class="nav-item mb-1 mt-4">
+                <small class="text-white-50 fw-bold text-uppercase px-4" style="font-size: 0.7rem; letter-spacing: 1px;">Kiosk Operations</small>
             </li>
-            <li class="nav-item mb-1 px-3">
-                <a href="new_slip.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 hover-bg-light">
-                    <i class="bi bi-cart-plus fs-5 text-muted"></i>
-                    <span class="fw-medium">New Borrowing</span>
+            <li class="nav-item mb-1">
+                <a href="new_slip.php" class="nav-link-sidebar">
+                    <i class="bi bi-cart-plus fs-5"></i>
+                    <span class="fw-medium menu-text">New Borrowing</span>
                 </a>
             </li>
-            <li class="nav-item mb-1 px-3">
-                <a href="active_slips.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 hover-bg-light">
-                    <i class="bi bi-arrow-return-left fs-5 text-muted"></i>
-                    <span class="fw-medium">Active Returns</span>
+            <li class="nav-item mb-1">
+                <a href="active_slips.php" class="nav-link-sidebar">
+                    <i class="bi bi-arrow-return-left fs-5"></i>
+                    <span class="fw-medium menu-text">Active Returns</span>
                 </a>
             </li>
 
-            <li class="nav-item mb-1 px-3 mt-4">
-                <small class="text-muted fw-bold text-uppercase px-3" style="font-size: 0.7rem; letter-spacing: 1px;">Lab Inventory</small>
+            <li class="nav-item mb-1 mt-4">
+                <small class="text-white-50 fw-bold text-uppercase px-4" style="font-size: 0.7rem; letter-spacing: 1px;">Lab Inventory</small>
             </li>
-            <li class="nav-item mb-1 px-3">
-                <a href="inventory.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 hover-bg-light">
-                    <i class="bi bi-tags fs-5 text-muted"></i>
-                    <span class="fw-medium">Equipment Categories</span>
+            <li class="nav-item mb-1">
+                <a href="inventory.php" class="nav-link-sidebar">
+                    <i class="bi bi-tags fs-5"></i>
+                    <span class="fw-medium menu-text">Equipment Categories</span>
                 </a>
             </li>
-            <li class="nav-item mb-1 px-3">
-                <a href="assets.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 hover-bg-light">
-                    <i class="bi bi-upc-scan fs-5 text-muted"></i>
-                    <span class="fw-medium">Physical Assets (IDs)</span>
+            <li class="nav-item mb-1">
+                <a href="assets.php" class="nav-link-sidebar">
+                    <i class="bi bi-upc-scan fs-5"></i>
+                    <span class="fw-medium menu-text">Physical Assets (IDs)</span>
                 </a>
             </li>
-            <li class="nav-item mb-1 px-3">
-                <a href="slip_history.php" class="nav-link text-dark rounded-3 px-3 py-2 d-flex align-items-center gap-3 hover-bg-light">
-                    <i class="bi bi-clock-history fs-5 text-muted"></i>
-                    <span class="fw-medium">Slip History</span>
+            <li class="nav-item mb-1">
+                <a href="slip_history.php" class="nav-link-sidebar">
+                    <i class="bi bi-clock-history fs-5"></i>
+                    <span class="fw-medium menu-text">Slip History</span>
                 </a>
             </li>
         </ul>
     </div>
     
-    <div class="sidebar-footer p-3 border-top position-absolute bottom-0 w-100 bg-white">
-        <a href="../logout.php" class="btn btn-light w-100 d-flex align-items-center justify-content-center gap-2 text-danger fw-bold border-0 shadow-sm rounded-pill" style="background-color: #fff0f0;">
-            <i class="bi bi-box-arrow-right"></i> Log Out
+    <div class="p-3 border-top" style="border-color: rgba(255,255,255,0.05) !important; background: rgba(0,0,0,0.1);">
+        <a href="../logout.php" class="btn w-100 d-flex align-items-center justify-content-center gap-2 fw-bold border-0 rounded-3 text-white" style="background: rgba(220, 53, 69, 0.2); transition: all 0.2s;" onmouseover="this.style.background='rgba(220, 53, 69, 0.5)'" onmouseout="this.style.background='rgba(220, 53, 69, 0.2)'">
+            <i class="bi bi-box-arrow-right"></i> <span class="menu-text">Log Out</span>
         </a>
     </div>
 </nav>
-
-<style>
-    .hover-bg-light:hover { background-color: rgba(31, 125, 83, 0.05); color: var(--ccs-primary) !important; }
-    .hover-bg-light:hover i { color: var(--ccs-primary) !important; }
-</style>
