@@ -16,10 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $slip_id = (int)$_POST['slip_id'];     
     $item_statuses = $_POST['item_status']; // Array of slip_item_id => condition     
     $asset_ids = $_POST['asset_id']; // Array of slip_item_id => asset_id     
+    $penalty_types = $_POST['penalty_type'] ?? []; // Array of slip_item_id => penalty     
     
     try {         
         $conn->beginTransaction();         
-        $stmt_update_item = $conn->prepare("UPDATE slip_items SET return_status = ?, return_date = NOW() WHERE id = ?");         
+        $stmt_update_item = $conn->prepare("UPDATE slip_items SET return_status = ?, return_date = NOW(), penalty_type = ?, penalty_status = ? WHERE id = ?");         
         $stmt_update_asset = $conn->prepare("UPDATE equipment_assets SET status = ? WHERE id = ?");         
         $all_intact = true;         
         
@@ -28,7 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $a_id = $asset_ids[$slip_item_id];                          
             
             // 1. Update the record on the slip             
-            $stmt_update_item->execute([$condition, $slip_item_id]);             
+            $p_type = null;
+            $p_status = 'None';
+            if (($condition === 'Returned_Broken' || $condition === 'Lost') && !empty($penalty_types[$slip_item_id])) {
+                $p_type = $penalty_types[$slip_item_id];
+                $p_status = 'Pending';
+            }
+            $stmt_update_item->execute([$condition, $p_type, $p_status, $slip_item_id]);             
             
             // 2. Update the actual physical asset's status             
             if ($condition === 'Returned_Intact') {                 
@@ -212,10 +219,16 @@ if (count($active_slips) > 0) {
                                         <td>
                                             <input type="hidden" name="asset_id[<?= $item['id'] ?>]" value="<?= $item['asset_id'] ?>">
                                             
-                                            <select name="item_status[<?= $item['id'] ?>]" class="form-select form-select-sm border-secondary" required>
+                                            <select name="item_status[<?= $item['id'] ?>]" class="form-select form-select-sm border-secondary" onchange="togglePenalty(this, <?= $item['id'] ?>)" required>
                                                 <option value="Returned_Intact" selected>✅ Intact / Good</option>
                                                 <option value="Returned_Broken">❌ Broken / Damaged</option>
                                                 <option value="Lost">❓ Missing / Lost</option>
+                                            </select>
+                                            <select name="penalty_type[<?= $item['id'] ?>]" id="penalty_<?= $item['id'] ?>" class="form-select form-select-sm border-danger mt-2 d-none">
+                                                <option value="">-- Select Penalty --</option>
+                                                <option value="Replace Item">Replace Item</option>
+                                                <option value="Community Service">Community Service</option>
+                                                <option value="Pay Fine">Pay Fine</option>
                                             </select>
                                         </td>
                                     </tr>
@@ -244,6 +257,19 @@ if (count($active_slips) > 0) {
     function openReturnModal(slipId) {
         var modal = new bootstrap.Modal(document.getElementById('returnModal_' + slipId));
         modal.show();
+    }
+
+    // Function to toggle penalty dropdown
+    function togglePenalty(selectElement, itemId) {
+        var penaltySelect = document.getElementById('penalty_' + itemId);
+        if (selectElement.value === 'Returned_Broken' || selectElement.value === 'Lost') {
+            penaltySelect.classList.remove('d-none');
+            penaltySelect.required = true;
+        } else {
+            penaltySelect.classList.add('d-none');
+            penaltySelect.required = false;
+            penaltySelect.value = "";
+        }
     }
 </script>
 </body>
