@@ -118,8 +118,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
 // --- FETCH UNIQUE RECENT BORROWERS FOR THE TABLE ---
 $borrowers_query = "SELECT s.student_id, s.student_name, s.course_section, s.subject_code AS last_subject, s.instructor_name AS last_instructor,
                            CASE
-                               WHEN (SELECT COUNT(*) FROM slips s3 JOIN slip_items si ON s3.id = si.slip_id WHERE s3.student_id = s.student_id AND si.penalty_status = 'Pending') > 0 THEN 'Overdue'
-                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Active') > 0 THEN 'Active'
+                               WHEN (SELECT COUNT(*) FROM slips s3 JOIN slip_items si ON s3.id = si.slip_id WHERE s3.student_id = s.student_id AND si.penalty_status = 'Pending' AND si.penalty_deadline < CURDATE()) > 0 THEN 'Suspended'
+                               WHEN (SELECT COUNT(*) FROM slips s3 JOIN slip_items si ON s3.id = si.slip_id WHERE s3.student_id = s.student_id AND si.penalty_status = 'Pending') > 0 THEN 'Has Penalty'
+                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Active') > 0 THEN 'Active Borrow'
                                ELSE 'Cleared'
                            END AS borrower_status
                     FROM slips s
@@ -240,9 +241,10 @@ foreach ($available_assets as $asset) {
                             <label for="statusFilter" class="form-label text-muted small fw-bold mb-1">Status</label>
                             <select id="statusFilter" class="form-select form-select-sm shadow-sm rounded-pill border">
                                 <option value="">All Statuses</option>
-                                <option value="Active">Active (Borrowed)</option>
-                                <option value="Cleared">Cleared (Returned)</option>
-                                <option value="Overdue">Overdue (Incomplete/Damaged)</option>
+                                <option value="Cleared">Cleared (Good)</option>
+                                <option value="Active Borrow">Active Borrow</option>
+                                <option value="Has Penalty">Has Penalty (Pending)</option>
+                                <option value="Suspended">Suspended (Overdue Penalty)</option>
                             </select>
                         </div>
 
@@ -294,12 +296,14 @@ foreach ($available_assets as $asset) {
                                             <?= htmlspecialchars($row['last_instructor']) ?>
                                         </td>
                                         <td class="pe-4 text-center student-status-col">
-                                            <?php if ($row['borrower_status'] === 'Active'): ?>
-                                                <span class="badge bg-danger rounded-pill px-3">Active</span>
-                                            <?php elseif ($row['borrower_status'] === 'Overdue'): ?>
-                                                <span class="badge bg-warning text-dark rounded-pill px-3">Overdue</span>
+                                            <?php if ($row['borrower_status'] === 'Suspended'): ?>
+                                                <span class="badge bg-danger rounded-pill px-3 shadow-sm"><i class="bi bi-exclamation-triangle-fill me-1"></i> Suspended</span>
+                                            <?php elseif ($row['borrower_status'] === 'Has Penalty'): ?>
+                                                <span class="badge bg-warning text-dark rounded-pill px-3 shadow-sm"><i class="bi bi-hourglass-split me-1"></i> Has Penalty</span>
+                                            <?php elseif ($row['borrower_status'] === 'Active Borrow'): ?>
+                                                <span class="badge bg-info text-dark rounded-pill px-3 shadow-sm">Active Borrow</span>
                                             <?php else: ?>
-                                                <span class="badge bg-success rounded-pill px-3">Cleared</span>
+                                                <span class="badge bg-success rounded-pill px-3 shadow-sm">Cleared</span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -654,8 +658,8 @@ foreach ($available_assets as $asset) {
 
     // Autofill Borrower details on row click and redirect/switch views
     function autofillBorrower(studentId, fullName, courseSection, status) {
-        if (status === 'Overdue') {
-            alert("Blocked: This student has OVERDUE items (damaged or incomplete returns) and is restricted from borrowing new equipment until cleared.");
+        if (status === 'Suspended') {
+            alert("Blocked: This student has OVERDUE unresolved penalties and is suspended from borrowing new equipment.");
             return;
         }
 
