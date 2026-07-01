@@ -420,13 +420,6 @@ if (count($active_slips) > 0) {
                     Initializing camera stream...
                 </div>
 
-                <!-- FILE UPLOAD FALLBACK -->
-                <div class="bg-light rounded-3 p-3 border text-start mb-3">
-                    <label class="form-label text-muted small fw-bold mb-1"><i class="bi bi-file-earmark-image me-1"></i>OR UPLOAD SLIP QR IMAGE</label>
-                    <input type="file" id="qrFileSelector" class="form-control form-control-sm" accept="image/*">
-                    <div class="text-muted small mt-1" style="font-size: 0.75rem;">Useful if the camera is already in-use by another application.</div>
-                </div>
-
                 <div class="d-flex gap-2 justify-content-center">
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close Scanner</button>
                 </div>
@@ -639,43 +632,7 @@ if (count($active_slips) > 0) {
         // Continuous decoding failure loop is silent to prevent log spam
     }
 
-    // --- 4. QR CODE FILE UPLOAD SCANNER ---
-    const qrFileSelector = document.getElementById('qrFileSelector');
-    if (qrFileSelector) {
-        qrFileSelector.addEventListener('change', function (e) {
-            if (!e.target.files || e.target.files.length === 0) return;
-
-            const file = e.target.files[0];
-            const feedback = document.getElementById('scannerFeedback');
-            feedback.className = "badge bg-info text-white border p-2 mb-3";
-            feedback.textContent = "Processing selected image for QR code...";
-
-            // Stop the camera-based scanner is it's active
-            stopScanner();
-
-            // Instantiate a scanner instance specifically for file parsing
-            const fileScanner = new Html5Qrcode("qr-reader");
-            fileScanner.scanFile(file, true)
-                .then(decodedText => {
-                    feedback.className = "badge bg-success text-white border p-2 mb-3";
-                    feedback.textContent = "QR Code parsed successfully from file upload!";
-
-                    // Clear the file picker
-                    qrFileSelector.value = '';
-
-                    // Call the scan success logic
-                    onScanSuccess(decodedText, null);
-                })
-                .catch(err => {
-                    console.error("Local file scanner error:", err);
-                    feedback.className = "badge bg-danger text-white border p-2 mb-3";
-                    feedback.textContent = "Failed to parse QR code from selected image.";
-                    qrFileSelector.value = '';
-                });
-        });
-    }
-
-    // Function to toggle penalty dropdown and deadline
+// Function to toggle penalty dropdown and deadline
     function togglePenalty(selectElement, itemId) {
         var penaltyGroup = document.getElementById('penalty_group_' + itemId);
         var penaltySelect = document.getElementById('penalty_' + itemId);
