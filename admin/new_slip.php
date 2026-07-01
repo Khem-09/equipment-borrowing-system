@@ -38,12 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
 
     // --- SUSPENSION CHECK ---
     $stmt_check = $conn->prepare("
-        SELECT COUNT(*) as overdue_count 
+        SELECT COUNT(*) as overdue_count
         FROM slip_items si
         JOIN slips s ON si.slip_id = s.id
-        WHERE s.student_id = ? 
-          AND si.penalty_status = 'Pending' 
-          AND si.penalty_deadline IS NOT NULL 
+        WHERE s.student_id = ?
+          AND si.penalty_status = 'Pending'
+          AND si.penalty_deadline IS NOT NULL
           AND si.penalty_deadline < CURDATE()
     ");
     $stmt_check->execute([$student_id]);
@@ -563,6 +563,14 @@ foreach ($available_assets as $asset) {
                         <div class="col-6">
                             <span class="text-muted d-block small text-uppercase fw-semibold" style="font-size: 0.75rem;">Class Time</span>
                             <span class="fw-bold text-dark" style="font-size: 0.9rem;"><?= htmlspecialchars($generated_slip['class_time']) ?></span>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted d-block small text-uppercase fw-semibold" style="font-size: 0.75rem;">Borrow Date</span>
+                            <span class="fw-bold text-dark" style="font-size: 0.9rem;"><?= date('F j, Y') ?></span>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-muted d-block small text-uppercase fw-semibold" style="font-size: 0.75rem;">Return Deadline</span>
+                            <span class="fw-bold text-danger" style="font-size: 0.9rem;"><i class="bi bi-clock-history me-1"></i><?= date('F j, Y') ?> (Today)</span>
                         </div>
                     </div>
 
