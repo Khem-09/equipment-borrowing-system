@@ -50,9 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </a>
                 </div>
 
-                <div class="glass-panel p-4 p-md-5 rounded-4 position-relative overflow-hidden">
-
-                    <div style="position: absolute; top: -50px; left: -50px; width: 150px; height: 150px; background: var(--ccs-primary); filter: blur(60px); opacity: 0.5; z-index: -1;"></div>
+                <div class="glass-panel p-4 p-md-5 rounded-4 position-relative">
 
                     <div class="text-center mb-4">
                         <h4 class="fw-bold text-white mb-1">Welcome Back</h4>
@@ -86,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-custom w-100 py-2 rounded-pill fw-bold shadow-lg mb-4 text-uppercase" style="letter-spacing: 1px;">Sign In</button>
+                        <button type="submit" class="btn btn-custom w-100 py-3 rounded-3 fw-bold shadow-sm mb-4 text-uppercase" style="letter-spacing: 1px;">Sign In</button>
                     </form>
 
                 </div>

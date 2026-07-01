@@ -1,4 +1,9 @@
 <?php
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: ../index.php");
+    exit;
+}
 // admin/get_specs.php
 require_once '../classes/database.php';
 $db = new Database();

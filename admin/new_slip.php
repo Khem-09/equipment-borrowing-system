@@ -36,7 +36,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
 
     $asset_ids = json_decode($_POST['asset_ids'], true);
 
-    if (empty($asset_ids)) {
+    // --- SUSPENSION CHECK ---
+    $stmt_check = $conn->prepare("
+        SELECT COUNT(*) as overdue_count 
+        FROM slip_items si
+        JOIN slips s ON si.slip_id = s.id
+        WHERE s.student_id = ? 
+          AND si.penalty_status = 'Pending' 
+          AND si.penalty_deadline IS NOT NULL 
+          AND si.penalty_deadline < CURDATE()
+    ");
+    $stmt_check->execute([$student_id]);
+    $overdue_check = $stmt_check->fetch();
+
+    if ($overdue_check['overdue_count'] > 0) {
+        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'><i class='bi bi-exclamation-triangle-fill me-2 text-danger'></i><strong>Borrowing Blocked!</strong> Student <strong>$student_id</strong> has overdue unresolved penalties. They must resolve these before borrowing again.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    } else if (empty($asset_ids)) {
         $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'>You must add at least one item to the slip!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
     } else {
         try {
@@ -158,7 +173,7 @@ foreach ($available_assets as $asset) {
         .cursor-pointer tr:hover { background-color: rgba(26, 100, 67, 0.08) !important; }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
 <div class="wrapper">
     <?php include '../includes/sidebar.php'; ?>
@@ -166,12 +181,12 @@ foreach ($available_assets as $asset) {
     <div class="main-content" id="mainContent">
         <div class="topbar">
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
-                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Borrowing Slips</h5>
+                <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
+                <h5 class="m-0 fw-bold">Borrowing Slips</h5>
             </div>
             <div class="d-flex align-items-center">
                 <div class="text-end me-3 d-none d-sm-block">
-                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
+                    <div class="fw-bold" style="font-size: 0.9rem;"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
                     <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
                 </div>
                 <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">

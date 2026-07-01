@@ -11,6 +11,19 @@ require_once '../classes/database.php';
 $db = new Database();
 $conn = $db->getConnection();
 
+$message = '';
+// --- RESOLVE PENALTY ---
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['action'] === 'resolve_penalty') {
+    $item_id = (int)$_POST['item_id'];
+    try {
+        $stmt_resolve = $conn->prepare("UPDATE slip_items SET penalty_status = 'Resolved' WHERE id = ?");
+        $stmt_resolve->execute([$item_id]);
+        $message = "<div class='alert alert-success alert-dismissible fade show shadow-sm mb-4'><i class='bi bi-check-circle me-2'></i>Penalty resolved successfully.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    } catch (Exception $e) {
+        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm mb-4'>Error: " . $e->getMessage() . "<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    }
+}
+
 // --- FETCH HISTORY SLIPS ---
 // Fetch slips that are 'Returned' or 'Incomplete', along with the name of the Admin who processed it
 $query = "
@@ -57,7 +70,7 @@ if (count($history_slips) > 0) {
     <link href="../assets/bootstrap/icons/bootstrap-icons.css" rel="stylesheet">
     <link href="../assets/css/style.css" rel="stylesheet">
 </head>
-<body class="bg-light">
+<body>
 
 <div class="wrapper">
     <?php include '../includes/sidebar.php'; ?>
@@ -66,12 +79,12 @@ if (count($history_slips) > 0) {
         
         <div class="topbar">
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
-                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Borrowing History</h5>
+                <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
+                <h5 class="m-0 fw-bold">Borrowing History</h5>
             </div>
             <div class="d-flex align-items-center">
                 <div class="text-end me-3 d-none d-sm-block">
-                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
+                    <div class="fw-bold" style="font-size: 0.9rem;"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
                     <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
                 </div>
                 <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
@@ -79,6 +92,7 @@ if (count($history_slips) > 0) {
         </div>
 
         <div class="content-area p-4 p-md-5">
+            <?= $message ?>
             
             <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
                 <div class="row gx-3 gy-3 align-items-center">
@@ -231,6 +245,29 @@ if (count($history_slips) > 0) {
                                                 <span class="badge bg-dark bg-opacity-10 text-dark border border-dark"><i class="bi bi-question-lg me-1"></i> Lost</span>
                                             <?php else: ?>
                                                 <span class="badge bg-secondary"><?= $item['return_status'] ?></span>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (!empty($item['penalty_type'])): ?>
+                                                <div class="mt-2 small bg-light p-2 rounded border">
+                                                    <strong>Penalty:</strong> <?= htmlspecialchars($item['penalty_type']) ?><br>
+                                                    <?php if ($item['penalty_status'] === 'Pending'): ?>
+                                                        <?php 
+                                                        $is_overdue = !empty($item['penalty_deadline']) && strtotime($item['penalty_deadline']) < strtotime('today');
+                                                        ?>
+                                                        <?php if ($is_overdue): ?>
+                                                            <span class="badge bg-danger text-white border border-danger"><i class="bi bi-exclamation-triangle-fill"></i> Overdue (<?= date('M d', strtotime($item['penalty_deadline'])) ?>)</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-warning text-dark border border-warning"><i class="bi bi-hourglass-split"></i> Pending <?= !empty($item['penalty_deadline']) ? '(Due: '.date('M d', strtotime($item['penalty_deadline'])).')' : '' ?></span>
+                                                        <?php endif; ?>
+                                                        <form method="POST" action="" class="d-inline">
+                                                            <input type="hidden" name="action" value="resolve_penalty">
+                                                            <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-success border-0 p-0 text-decoration-underline ms-2 fw-bold" style="font-size: 0.75rem;">Mark Resolved</button>
+                                                        </form>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success"><i class="bi bi-check-circle"></i> Resolved</span>
+                                                    <?php endif; ?>
+                                                </div>
                                             <?php endif; ?>
                                         </td>
                                     </tr>

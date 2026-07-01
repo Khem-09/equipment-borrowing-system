@@ -16,10 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
     $slip_id = (int)$_POST['slip_id'];
     $item_statuses = $_POST['item_status']; // Array of slip_item_id => condition
     $asset_ids = $_POST['asset_id']; // Array of slip_item_id => asset_id
+    $penalty_types = $_POST['penalty_type'] ?? []; // Array of slip_item_id => penalty
+    $penalty_deadlines = $_POST['penalty_deadline'] ?? []; // Array of slip_item_id => deadline
 
     try {
         $conn->beginTransaction();
-        $stmt_update_item = $conn->prepare("UPDATE slip_items SET return_status = ?, return_date = NOW() WHERE id = ?");
+        $stmt_update_item = $conn->prepare("UPDATE slip_items SET return_status = ?, return_date = NOW(), penalty_type = ?, penalty_status = ?, penalty_deadline = ? WHERE id = ?");
         $stmt_update_asset = $conn->prepare("UPDATE equipment_assets SET status = ? WHERE id = ?");
         $all_intact = true;
 
@@ -28,7 +30,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
             $a_id = $asset_ids[$slip_item_id];
 
             // 1. Update the record on the slip
-            $stmt_update_item->execute([$condition, $slip_item_id]);
+            $p_type = null;
+            $p_status = 'None';
+            $p_deadline = null;
+            if (($condition === 'Returned_Broken' || $condition === 'Lost') && !empty($penalty_types[$slip_item_id])) {
+                $p_type = $penalty_types[$slip_item_id];
+                $p_status = 'Pending';
+                $p_deadline = !empty($penalty_deadlines[$slip_item_id]) ? $penalty_deadlines[$slip_item_id] : date('Y-m-d', strtotime('+7 days'));
+            }
+            $stmt_update_item->execute([$condition, $p_type, $p_status, $p_deadline, $slip_item_id]);
 
             // 2. Update the actual physical asset's status
             if ($condition === 'Returned_Intact') {
@@ -190,7 +200,7 @@ if (count($active_slips) > 0) {
         }
     </style>
 </head>
-<body class="bg-light">
+<body>
 
 <div class="wrapper">
     <?php include '../includes/sidebar.php'; ?>
@@ -198,12 +208,12 @@ if (count($active_slips) > 0) {
     <div class="main-content" id="mainContent">
         <div class="topbar">
             <div class="d-flex align-items-center">
-                <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
-                <h5 class="m-0 fw-bold" style="color: var(--ccs-darkest);">Active Borrows (Return Desk)</h5>
+                <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
+                <h5 class="m-0 fw-bold">Active Borrows (Return Desk)</h5>
             </div>
             <div class="d-flex align-items-center">
                 <div class="text-end me-3 d-none d-sm-block">
-                    <div class="fw-bold" style="font-size: 0.9rem; color: var(--ccs-darkest);"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
+                    <div class="fw-bold" style="font-size: 0.9rem;"><?= htmlspecialchars($_SESSION['full_name']) ?></div>
                     <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
                 </div>
                 <img src="https://ui-avatars.com/api/?name=<?= urlencode($_SESSION['full_name']) ?>&background=1F7D53&color=fff&bold=true" class="rounded-circle shadow-sm" width="40" height="40">
@@ -258,6 +268,11 @@ if (count($active_slips) > 0) {
                         <tr data-slip-id="<?= $slip['id'] ?>">
                             <td class="slip-number-col ps-4 fw-bold text-primary font-monospace small">
                                 <?= $slip['slip_number'] ?>
+                                <?php if (date('Y-m-d', strtotime($slip['issue_date'])) < date('Y-m-d')): ?>
+                                    <br><span class="badge bg-danger bg-opacity-10 text-danger border border-danger mt-1" style="font-size: 0.65rem;"><i class="bi bi-clock-history me-1"></i>OVERDUE</span>
+                                <?php else: ?>
+                                    <br><span class="badge bg-success bg-opacity-10 text-success border border-success mt-1" style="font-size: 0.65rem;"><i class="bi bi-clock me-1"></i>TODAY</span>
+                                <?php endif; ?>
                             </td>
                             <td class="student-info-col">
                                 <div class="fw-bold" style="color: var(--ccs-darkest);"><?= htmlspecialchars($slip['student_name']) ?></div>
@@ -341,11 +356,23 @@ if (count($active_slips) > 0) {
                                         <td>
                                             <input type="hidden" name="asset_id[<?= $item['id'] ?>]" value="<?= $item['asset_id'] ?>">
 
-                                            <select name="item_status[<?= $item['id'] ?>]" class="form-select form-select-sm border-secondary" required>
+                                            <select name="item_status[<?= $item['id'] ?>]" class="form-select form-select-sm border-secondary" onchange="togglePenalty(this, <?= $item['id'] ?>)" required>
                                                 <option value="Returned_Intact" selected>✅ Intact / Good</option>
                                                 <option value="Returned_Broken">❌ Broken / Damaged</option>
                                                 <option value="Lost">❓ Missing / Lost</option>
                                             </select>
+                                            <div id="penalty_group_<?= $item['id'] ?>" class="d-none mt-2">
+                                                <select name="penalty_type[<?= $item['id'] ?>]" id="penalty_<?= $item['id'] ?>" class="form-select form-select-sm border-danger mb-1">
+                                                    <option value="">-- Select Penalty --</option>
+                                                    <option value="Replace Item">Replace Item</option>
+                                                    <option value="Community Service">Community Service</option>
+                                                    <option value="Pay Fine">Pay Fine</option>
+                                                </select>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text border-danger text-danger bg-transparent" style="font-size: 0.7rem;">Due by</span>
+                                                    <input type="date" name="penalty_deadline[<?= $item['id'] ?>]" id="deadline_<?= $item['id'] ?>" class="form-control border-danger" value="<?= date('Y-m-d', strtotime('+7 days')) ?>">
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -641,6 +668,24 @@ if (count($active_slips) > 0) {
                     qrFileSelector.value = '';
                 });
         });
+    }
+
+    // Function to toggle penalty dropdown and deadline
+    function togglePenalty(selectElement, itemId) {
+        var penaltyGroup = document.getElementById('penalty_group_' + itemId);
+        var penaltySelect = document.getElementById('penalty_' + itemId);
+        var deadlineInput = document.getElementById('deadline_' + itemId);
+
+        if (selectElement.value === 'Returned_Broken' || selectElement.value === 'Lost') {
+            penaltyGroup.classList.remove('d-none');
+            penaltySelect.required = true;
+            deadlineInput.required = true;
+        } else {
+            penaltyGroup.classList.add('d-none');
+            penaltySelect.required = false;
+            deadlineInput.required = false;
+            penaltySelect.value = "";
+        }
     }
 </script>
 </body>
