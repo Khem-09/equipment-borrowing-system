@@ -11,22 +11,13 @@ require_once '../classes/database.php';
 $db = new Database();
 $conn = $db->getConnection();
 
-// Validate that the logged-in user actually exists in the db (handles truncated/restructured users database edge cases)
-$stmt_check_user = $conn->prepare("SELECT COUNT(*) FROM users WHERE id = ?");
-$stmt_check_user->execute([$_SESSION['user_id']]);
-if ($stmt_check_user->fetchColumn() == 0) {
-    session_destroy();
-    header("Location: ../index.php?error=SessionExpired");
-    exit;
-}
-
 // --- FETCH HISTORY SLIPS ---
 // Fetch slips that are 'Returned' or 'Incomplete', along with the name of the Admin who processed it
 $query = "
-    SELECT s.*, u.full_name as admin_name
-    FROM slips s
-    LEFT JOIN users u ON s.processed_by = u.id
-    WHERE s.status IN ('Returned', 'Incomplete')
+    SELECT s.*, u.full_name as admin_name 
+    FROM slips s 
+    LEFT JOIN users u ON s.processed_by = u.id 
+    WHERE s.status IN ('Returned', 'Incomplete') 
     ORDER BY s.issue_date DESC
 ";
 $stmt = $conn->query($query);
@@ -37,9 +28,9 @@ $slip_items = [];
 if (count($history_slips) > 0) {
     $slip_ids = array_column($history_slips, 'id');
     $placeholders = str_repeat('?,', count($slip_ids) - 1) . '?';
-
+    
     $query_items = "
-        SELECT si.*, a.unique_asset_code, c.category_name
+        SELECT si.*, a.unique_asset_code, c.category_name 
         FROM slip_items si
         JOIN equipment_assets a ON si.asset_id = a.id
         JOIN equipment_categories c ON a.category_id = c.id
@@ -72,7 +63,7 @@ if (count($history_slips) > 0) {
     <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content" id="mainContent">
-
+        
         <div class="topbar">
             <div class="d-flex align-items-center">
                 <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
@@ -88,9 +79,24 @@ if (count($history_slips) > 0) {
         </div>
 
         <div class="content-area p-4 p-md-5">
-
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <p class="text-muted mb-0">A permanent ledger of all completed and incomplete borrowing transactions.</p>
+            
+            <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
+                <div class="row gx-3 gy-3 align-items-center">
+                    <div class="col-lg-8">
+                        <p class="text-muted mb-0">A permanent ledger of all completed and incomplete borrowing transactions.</p>
+                    </div>
+                    <div class="col-lg-auto d-flex justify-content-lg-end">
+                        <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
+                            <span class="small text-muted">Rows:</span>
+                            <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="table-card shadow-sm border-0 bg-white rounded-4">
@@ -148,6 +154,13 @@ if (count($history_slips) > 0) {
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 p-3 border-top">
+                        <div class="text-muted small" id="paginationInfo">Showing 0 to 0 of 0 entries</div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationPrev">Previous</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationNext">Next</button>
+                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -167,7 +180,7 @@ if (count($history_slips) > 0) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 bg-light">
-
+                    
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <h6 class="fw-bold text-muted small text-uppercase">Student Details</h6>
@@ -199,9 +212,9 @@ if (count($history_slips) > 0) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php
+                                <?php 
                                 $items = $slip_items[$slip['id']] ?? [];
-                                foreach ($items as $item):
+                                foreach ($items as $item): 
                                 ?>
                                     <tr>
                                         <td class="font-monospace fw-bold text-dark"><?= $item['unique_asset_code'] ?></td>
@@ -239,9 +252,60 @@ if (count($history_slips) > 0) {
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
+    document.getElementById('sidebarToggle').addEventListener('click', function() { 
+        document.getElementById('sidebar').classList.toggle('collapsed'); 
     });
+
+    const paginationSize = document.getElementById('paginationSize');
+    const paginationPrev = document.getElementById('paginationPrev');
+    const paginationNext = document.getElementById('paginationNext');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+    let currentPage = 1;
+    let rowsPerPage = Number(paginationSize?.value || 10);
+
+    function updatePagination() {
+        const totalRows = tableRows.length;
+        const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+        currentPage = Math.min(currentPage, totalPages);
+
+        tableRows.forEach((row, index) => {
+            const start = (currentPage - 1) * rowsPerPage;
+            row.style.display = index >= start && index < start + rowsPerPage ? '' : 'none';
+        });
+
+        const startEntry = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+        const endEntry = Math.min(totalRows, currentPage * rowsPerPage);
+        paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
+        paginationPrev.disabled = currentPage === 1;
+        paginationNext.disabled = currentPage === totalPages;
+    }
+
+    if (paginationSize) {
+        paginationSize.addEventListener('change', function() {
+            rowsPerPage = Number(this.value);
+            currentPage = 1;
+            updatePagination();
+        });
+    }
+
+    if (paginationPrev) {
+        paginationPrev.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                updatePagination();
+            }
+        });
+    }
+
+    if (paginationNext) {
+        paginationNext.addEventListener('click', function() {
+            currentPage += 1;
+            updatePagination();
+        });
+    }
+
+    updatePagination();
 </script>
 </body>
 </html>

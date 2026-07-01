@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($code_exists > 0) {
             // 2. If it exists, block the insert and show a warning message
             $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm mb-4'>
-                            <strong><i class='bi bi-exclamation-triangle me-2'></i>Registration Failed:</strong>
+                            <strong><i class='bi bi-exclamation-triangle me-2'></i>Registration Failed:</strong> 
                             The asset code '<b>" . htmlspecialchars($asset_code) . "</b>' is already registered in the system.
                             <button type='button' class='btn-close' data-bs-dismiss='alert'></button>
                         </div>";
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 // --- FETCH ALL ASSETS FOR THE TABLE ---
 // We join the categories and specifications tables so we can display their names
 $query = "
-    SELECT a.*, c.category_name, s.specification_name
+    SELECT a.*, c.category_name, s.specification_name 
     FROM equipment_assets a
     JOIN equipment_categories c ON a.category_id = c.id
     JOIN equipment_specifications s ON a.specification_id = s.id
@@ -88,7 +88,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content" id="mainContent">
-
+        
         <div class="topbar">
             <div class="d-flex align-items-center">
                 <button id="sidebarToggle" class="me-4 btn btn-light border-0"><i class="bi bi-list fs-4"></i></button>
@@ -104,17 +104,30 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <div class="content-area p-4 p-md-5">
-
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-                <p class="text-muted mb-0">Register specific items using their sticker IDs/Barcodes.</p>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="input-group shadow-sm" style="max-width: 300px;">
-                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="tableSearchInput" class="form-control border-start-0 ps-0" placeholder="Search assets...">
+            
+            <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
+                <div class="row gx-3 gy-3 align-items-center">
+                    <div class="col-lg-7">
+                        <p class="text-muted mb-3">Register specific items using their sticker IDs/Barcodes.</p>
+                        <div class="input-group shadow-sm rounded-pill overflow-hidden" style="max-width: 100%;">
+                            <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" id="tableSearchInput" class="form-control border-0 ps-0" placeholder="Search assets...">
+                        </div>
                     </div>
-                    <button class="btn btn-custom rounded-pill px-4 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addAssetModal">
-                        <i class="bi bi-upc-scan me-1"></i> Register New Asset
-                    </button>
+                    <div class="col-lg-auto d-flex flex-wrap align-items-center gap-2 justify-content-lg-end">
+                        <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
+                            <span class="small text-muted">Rows:</span>
+                            <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-custom rounded-pill px-4 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addAssetModal">
+                            <i class="bi bi-upc-scan me-1"></i> Register New Asset
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -169,6 +182,13 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 p-3 border-top">
+                        <div class="text-muted small" id="paginationInfo">Showing 0 to 0 of 0 entries</div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationPrev">Previous</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationNext">Next</button>
+                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -184,7 +204,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <div class="modal-body">
                 <input type="hidden" name="action" value="add">
-
+                
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">EQUIPMENT CATEGORY</label>
                     <select name="category_id" id="categorySelect" class="form-select bg-light" required>
@@ -231,30 +251,77 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
+    document.getElementById('sidebarToggle').addEventListener('click', function() { 
+        document.getElementById('sidebar').classList.toggle('collapsed'); 
     });
 
-    // --- NEW: FRONTEND TABLE FILTER LOGIC ---
+    // --- NEW: FRONTEND TABLE FILTER + PAGINATION LOGIC ---
     const searchInput = document.getElementById('tableSearchInput');
+    const paginationSize = document.getElementById('paginationSize');
+    const paginationPrev = document.getElementById('paginationPrev');
+    const paginationNext = document.getElementById('paginationNext');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+    let currentPage = 1;
+    let rowsPerPage = Number(paginationSize?.value || 10);
+
+    function updatePagination() {
+        const filteredRows = tableRows.filter(row => row.style.display !== 'none');
+        const totalRows = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+        currentPage = Math.min(currentPage, totalPages);
+
+        filteredRows.forEach((row, index) => {
+            const start = (currentPage - 1) * rowsPerPage;
+            row.style.display = index >= start && index < start + rowsPerPage ? '' : 'none';
+        });
+
+        const startEntry = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+        const endEntry = Math.min(totalRows, currentPage * rowsPerPage);
+        paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
+        paginationPrev.disabled = currentPage === 1;
+        paginationNext.disabled = currentPage === totalPages;
+    }
+
+    function applySearchFilter() {
+        const filterValue = searchInput.value.toLowerCase();
+        tableRows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            row.style.display = rowText.includes(filterValue) ? '' : 'none';
+        });
+        currentPage = 1;
+        updatePagination();
+    }
+
     if (searchInput) {
-        searchInput.addEventListener('keyup', function() {
-            const filterValue = this.value.toLowerCase();
-            const tableRows = document.querySelectorAll('.table tbody tr');
+        searchInput.addEventListener('keyup', applySearchFilter);
+    }
 
-            tableRows.forEach(row => {
-                // Do not filter the "No data found" empty state row
-                if (row.querySelector('td').colSpan > 1) return;
-
-                const rowText = row.textContent.toLowerCase();
-                if (rowText.includes(filterValue)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+    if (paginationSize) {
+        paginationSize.addEventListener('change', function() {
+            rowsPerPage = Number(this.value);
+            currentPage = 1;
+            updatePagination();
         });
     }
+
+    if (paginationPrev) {
+        paginationPrev.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                updatePagination();
+            }
+        });
+    }
+
+    if (paginationNext) {
+        paginationNext.addEventListener('click', function() {
+            currentPage += 1;
+            updatePagination();
+        });
+    }
+
+    updatePagination();
 
     // --- DYNAMIC DEPENDENT DROPDOWN LOGIC ---
     document.getElementById('categorySelect').addEventListener('change', function() {
@@ -271,7 +338,7 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
                 .then(response => response.json())
                 .then(data => {
                     specSelect.innerHTML = '<option value="">-- Select Specification --</option>';
-
+                    
                     if(data.length > 0) {
                         data.forEach(spec => {
                             specSelect.innerHTML += `<option value="${spec.id}">${spec.specification_name}</option>`;
