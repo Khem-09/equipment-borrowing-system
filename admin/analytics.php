@@ -19,20 +19,123 @@ $metrics = $analytics->getQuickMetrics($currentFilters);
 $popularCategories = $analytics->getPopularCategories($currentFilters);
 $recentVolume = $analytics->getRecentBorrowingVolume($currentFilters);
 
+if (isset($_GET['export']) && $_GET['export'] === '1') {
+    $selectedCategory = null;
+    foreach ($filterOptions['categories'] as $cat) {
+        if ((string)$cat['id'] === (string)$currentFilters['category_id']) {
+            $selectedCategory = $cat['category_name'];
+            break;
+        }
+    }
+
+    $selectedSpec = null;
+    foreach ($filterOptions['specs'] as $spec) {
+        if ((string)$spec['id'] === (string)$currentFilters['spec_id']) {
+            $selectedSpec = $spec['specification_name'];
+            break;
+        }
+    }
+
+    $selectedAsset = null;
+    foreach ($filterOptions['assets'] as $asset) {
+        if ((string)$asset['id'] === (string)$currentFilters['asset_id']) {
+            $selectedAsset = $asset['unique_asset_code'];
+            break;
+        }
+    }
+
+    $filename = 'analytics_' . date('Ymd_His') . '.csv';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+    $output = fopen('php://output', 'w');
+    fputcsv($output, ['Analytics Report']);
+    fputcsv($output, ['Category Filter', $selectedCategory ?? 'All Categories']);
+    fputcsv($output, ['Specification Filter', $selectedSpec ?? 'All Specifications']);
+    fputcsv($output, ['Asset Filter', $selectedAsset ?? 'All Assets']);
+    fputcsv($output, []);
+    fputcsv($output, ['Metric', 'Value']);
+    fputcsv($output, ['Total Assets', $metrics['total_assets']]);
+    fputcsv($output, ['Total Slips', $metrics['total_slips']]);
+    fputcsv($output, []);
+    fputcsv($output, ['Most Borrowed Categories']);
+    fputcsv($output, ['Category', 'Borrow Count']);
+    foreach ($popularCategories as $row) {
+        fputcsv($output, [$row['category_name'], $row['borrow_count']]);
+    }
+    fputcsv($output, []);
+    fputcsv($output, ['Borrowing Volume (Last 7 Days)']);
+    fputcsv($output, ['Date', 'Daily Count']);
+    foreach ($recentVolume as $row) {
+        fputcsv($output, [$row['borrow_date'], $row['daily_count']]);
+    }
+    fclose($output);
+    exit;
+}
+
 include '../includes/header.php';
 include '../includes/sidebar.php';
 ?>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="content-wrapper" style="margin-left: 260px; padding: 2rem;">
+<style>
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .printable-analytics, .printable-analytics * {
+        visibility: visible;
+    }
+
+    .printable-analytics {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .sidebar, .navbar, .content-wrapper > .container-fluid > .d-flex.justify-content-between.align-items-center.mb-4, .btn, .card-header, .card-body canvas {
+        display: none !important;
+    }
+
+    .content-wrapper {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #dee2e6 !important;
+        break-inside: avoid;
+    }
+}
+</style>
+
+<div class="content-wrapper printable-analytics" style="margin-left: 260px; padding: 2rem;">
     <div class="container-fluid">
         
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3 class="m-0 fw-bolder" style="color: var(--ccs-darkest);">System Analytics</h3>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary fw-medium" onclick="window.print()">
+                    <i class="bi bi-printer"></i> Print
+                </button>
+                <?php
+                $exportQuery = $_GET;
+                $exportQuery['export'] = '1';
+                $exportUrl = 'analytics.php?' . http_build_query($exportQuery);
+                ?>
+                <a href="<?php echo htmlspecialchars($exportUrl); ?>" class="btn btn-outline-success fw-medium">
+                    <i class="bi bi-download"></i> Export CSV
+                </a>
+            </div>
         </div>
 
-        <div class="card border-0 shadow-sm rounded-3 mb-4">
+        <div class="card border-0 shadow-sm rounded-3 mb-4 d-print-none">
             <div class="card-body p-4">
                 <form id="filterForm" method="GET" action="analytics.php" class="row g-3 align-items-end">
                     
@@ -69,7 +172,7 @@ include '../includes/sidebar.php';
                             <option value="">All Assets</option>
                             <?php foreach ($filterOptions['assets'] as $asset): ?>
                                 <option value="<?php echo $asset['id']; ?>" <?php echo ($currentFilters['asset_id'] == $asset['id']) ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($asset['asset_tag']); ?>
+                                    <?php echo htmlspecialchars($asset['unique_asset_code']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

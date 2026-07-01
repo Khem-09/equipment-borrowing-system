@@ -169,6 +169,20 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 p-3 border-top">
+                        <div class="text-muted small" id="paginationInfo">Showing 0 to 0 of 0 entries</div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <label class="mb-0 small text-muted">Rows:</label>
+                            <select id="paginationSize" class="form-select form-select-sm w-auto" style="min-width: 90px; max-width: 120px;">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationPrev">Previous</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationNext">Next</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -235,26 +249,73 @@ $categories_list = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
         document.getElementById('sidebar').classList.toggle('collapsed'); 
     });
 
-    // --- NEW: FRONTEND TABLE FILTER LOGIC ---
+    // --- NEW: FRONTEND TABLE FILTER + PAGINATION LOGIC ---
     const searchInput = document.getElementById('tableSearchInput');
-    if (searchInput) {
-        searchInput.addEventListener('keyup', function() {
-            const filterValue = this.value.toLowerCase();
-            const tableRows = document.querySelectorAll('.table tbody tr');
+    const paginationSize = document.getElementById('paginationSize');
+    const paginationPrev = document.getElementById('paginationPrev');
+    const paginationNext = document.getElementById('paginationNext');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+    let currentPage = 1;
+    let rowsPerPage = Number(paginationSize?.value || 10);
 
-            tableRows.forEach(row => {
-                // Do not filter the "No data found" empty state row
-                if (row.querySelector('td').colSpan > 1) return;
-                
-                const rowText = row.textContent.toLowerCase();
-                if (rowText.includes(filterValue)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+    function updatePagination() {
+        const filteredRows = tableRows.filter(row => row.style.display !== 'none');
+        const totalRows = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+        currentPage = Math.min(currentPage, totalPages);
+
+        filteredRows.forEach((row, index) => {
+            const start = (currentPage - 1) * rowsPerPage;
+            row.style.display = index >= start && index < start + rowsPerPage ? '' : 'none';
+        });
+
+        const startEntry = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+        const endEntry = Math.min(totalRows, currentPage * rowsPerPage);
+        paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
+        paginationPrev.disabled = currentPage === 1;
+        paginationNext.disabled = currentPage === totalPages;
+    }
+
+    function applySearchFilter() {
+        const filterValue = searchInput.value.toLowerCase();
+        tableRows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            row.style.display = rowText.includes(filterValue) ? '' : 'none';
+        });
+        currentPage = 1;
+        updatePagination();
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('keyup', applySearchFilter);
+    }
+
+    if (paginationSize) {
+        paginationSize.addEventListener('change', function() {
+            rowsPerPage = Number(this.value);
+            currentPage = 1;
+            updatePagination();
         });
     }
+
+    if (paginationPrev) {
+        paginationPrev.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                updatePagination();
+            }
+        });
+    }
+
+    if (paginationNext) {
+        paginationNext.addEventListener('click', function() {
+            currentPage += 1;
+            updatePagination();
+        });
+    }
+
+    updatePagination();
 
     // --- DYNAMIC DEPENDENT DROPDOWN LOGIC ---
     document.getElementById('categorySelect').addEventListener('change', function() {

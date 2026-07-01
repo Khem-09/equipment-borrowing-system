@@ -15,21 +15,19 @@ class Analytics {
         if ($stmt) $options['categories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // 2. Fetch Specs - Filter by Category if selected
-        // NOTE: Change 'id' to your actual name column (e.g., 'specification_name' or 'model') to show names
-        $specQuery = "SELECT id FROM equipment_specifications"; 
+        $specQuery = "SELECT id, specification_name FROM equipment_specifications"; 
         $specParams = [];
         if (!empty($filters['category_id'])) {
             $specQuery .= " WHERE category_id = :cat_id";
             $specParams[':cat_id'] = $filters['category_id'];
         }
-        $specQuery .= " ORDER BY id ASC";
+        $specQuery .= " ORDER BY specification_name ASC";
         $stmt = $this->db->prepare($specQuery);
         $stmt->execute($specParams);
         $options['specs'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // 3. Fetch Assets - Filter by Spec and/or Category if selected
-        // NOTE: Change 'id' to your actual name/serial column (e.g., 'serial_number') to show names
-        $assetQuery = "SELECT id FROM equipment_assets"; 
+        $assetQuery = "SELECT id, unique_asset_code FROM equipment_assets"; 
         $assetConditions = [];
         $assetParams = [];
         if (!empty($filters['spec_id'])) {
@@ -44,7 +42,7 @@ class Analytics {
         if (!empty($assetConditions)) {
             $assetQuery .= " WHERE " . implode(" AND ", $assetConditions);
         }
-        $assetQuery .= " ORDER BY id ASC";
+        $assetQuery .= " ORDER BY unique_asset_code ASC";
         
         $stmt = $this->db->prepare($assetQuery);
         $stmt->execute($assetParams);
