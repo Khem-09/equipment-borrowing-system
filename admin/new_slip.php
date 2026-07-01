@@ -43,25 +43,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
         JOIN slips s ON si.slip_id = s.id
         WHERE s.student_id = ?
           AND si.penalty_status = 'Pending'
-          AND si.penalty_deadline IS NOT NULL
-          AND si.penalty_deadline < CURDATE()
     ");
     $stmt_check->execute([$student_id]);
     $overdue_check = $stmt_check->fetch();
 
     if ($overdue_check['overdue_count'] > 0) {
-        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'><i class='bi bi-exclamation-triangle-fill me-2 text-danger'></i><strong>Borrowing Blocked!</strong> Student <strong>$student_id</strong> has overdue unresolved penalties. They must resolve these before borrowing again.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'><i class='bi bi-exclamation-triangle-fill me-2 text-danger'></i><strong>Borrowing Blocked!</strong> Student <strong>$student_id</strong> has unresolved penalties (e.g. broken or lost equipment). They must resolve these before borrowing again.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
     } else if (empty($asset_ids)) {
         $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'>You must add at least one item to the slip!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
     } else {
         try {
             $conn->beginTransaction();
 
-            // Restrict checkout if the student has overdue/incomplete returns
-            $stmt_check_overdue = $conn->prepare("SELECT COUNT(*) FROM slips WHERE student_id = ? AND status = 'Incomplete'");
+            // Restrict checkout if the student has pending/unresolved item penalties
+            $stmt_check_overdue = $conn->prepare("
+                SELECT COUNT(*)
+                FROM slip_items si
+                JOIN slips s ON si.slip_id = s.id
+                WHERE s.student_id = ? AND si.penalty_status = 'Pending'
+            ");
             $stmt_check_overdue->execute([$student_id]);
             if ($stmt_check_overdue->fetchColumn() > 0) {
-                throw new Exception("Student has overdue items (incomplete or damaged returns) and cannot borrow equipment at this time.");
+                throw new Exception("Student has unresolved penalties (incomplete or damaged returns) and cannot borrow equipment at this time.");
             }
 
             $slip_number = 'SLP-' . date('Ymd-His');
@@ -115,8 +118,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
 // --- FETCH UNIQUE RECENT BORROWERS FOR THE TABLE ---
 $borrowers_query = "SELECT s.student_id, s.student_name, s.course_section, s.subject_code AS last_subject, s.instructor_name AS last_instructor,
                            CASE
+                               WHEN (SELECT COUNT(*) FROM slips s3 JOIN slip_items si ON s3.id = si.slip_id WHERE s3.student_id = s.student_id AND si.penalty_status = 'Pending') > 0 THEN 'Overdue'
                                WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Active') > 0 THEN 'Active'
-                               WHEN (SELECT COUNT(*) FROM slips s3 WHERE s3.student_id = s.student_id AND s3.status = 'Incomplete') > 0 THEN 'Overdue'
                                ELSE 'Cleared'
                            END AS borrower_status
                     FROM slips s
