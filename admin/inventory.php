@@ -90,16 +90,29 @@ $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         <div class="content-area p-4 p-md-5">
             
-            <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-                <p class="text-muted mb-0">Manage general types of laboratory equipment.</p>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="input-group shadow-sm" style="max-width: 300px;">
-                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
-                        <input type="text" id="tableSearchInput" class="form-control border-start-0 ps-0" placeholder="Search categories...">
+            <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
+                <div class="row gx-3 gy-3 align-items-center">
+                    <div class="col-lg-7">
+                        <p class="text-muted mb-3">Manage general types of laboratory equipment.</p>
+                        <div class="input-group shadow-sm rounded-pill overflow-hidden" style="max-width: 100%;">
+                            <span class="input-group-text bg-white border-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" id="tableSearchInput" class="form-control border-0 ps-0" placeholder="Search categories...">
+                        </div>
                     </div>
-                    <button class="btn btn-custom rounded-pill px-4 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addModal">
-                        <i class="bi bi-plus-lg me-1"></i> New Category
-                    </button>
+                    <div class="col-lg-auto d-flex flex-wrap align-items-center gap-2 justify-content-lg-end">
+                        <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
+                            <span class="small text-muted">Rows:</span>
+                            <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-custom rounded-pill px-4 shadow-sm text-nowrap" data-bs-toggle="modal" data-bs-target="#addModal">
+                            <i class="bi bi-plus-lg me-1"></i> New Category
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -155,10 +168,17 @@ $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </tr>
                                 <?php endforeach; ?>
                             <?php else: ?>
-                                <tr><td colspan="5" class="text-center text-muted py-5">No equipment categories added yet.</td></tr>
+                                <tr class="no-results-row"><td colspan="5" class="text-center text-muted py-5">No equipment categories added yet.</td></tr>
                             <?php endif; ?>
                         </tbody>
                     </table>
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 p-3 border-top">
+                        <div class="text-muted small" id="paginationInfo">Showing 0 to 0 of 0 entries</div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationPrev">Previous</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="paginationNext">Next</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -237,18 +257,73 @@ $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // --- NEW: FRONTEND TABLE FILTER LOGIC ---
     const searchInput = document.getElementById('tableSearchInput');
+    const paginationSize = document.getElementById('paginationSize');
+    const paginationPrev = document.getElementById('paginationPrev');
+    const paginationNext = document.getElementById('paginationNext');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+    let currentPage = 1;
+    let rowsPerPage = Number(paginationSize?.value || 10);
+
+    function updatePagination() {
+        const filteredRows = tableRows.filter(row => row.style.display !== 'none');
+        const totalRows = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+        currentPage = Math.min(currentPage, totalPages);
+
+        filteredRows.forEach((row, index) => {
+            const start = (currentPage - 1) * rowsPerPage;
+            row.style.display = index >= start && index < start + rowsPerPage ? '' : 'none';
+        });
+
+        const startEntry = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+        const endEntry = Math.min(totalRows, currentPage * rowsPerPage);
+        paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
+        paginationPrev.disabled = currentPage === 1;
+        paginationNext.disabled = currentPage === totalPages;
+    }
+
+    function applySearchFilter() {
+        const filterValue = searchInput.value.toLowerCase();
+        tableRows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            row.style.display = rowText.includes(filterValue) ? '' : 'none';
+        });
+        currentPage = 1;
+        updatePagination();
+    }
+
     if (searchInput) {
         searchInput.addEventListener('keyup', function() {
-            const filterValue = this.value.toLowerCase();
-            const tableRows = document.querySelectorAll('.table tbody tr');
-
-            tableRows.forEach(row => {
-                if (row.querySelector('td').colSpan > 1) return; // Skip empty state row
-                const rowText = row.textContent.toLowerCase();
-                row.style.display = rowText.includes(filterValue) ? '' : 'none';
-            });
+            applySearchFilter();
         });
     }
+
+    if (paginationSize) {
+        paginationSize.addEventListener('change', function() {
+            rowsPerPage = Number(this.value);
+            currentPage = 1;
+            updatePagination();
+        });
+    }
+
+    if (paginationPrev) {
+        paginationPrev.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                updatePagination();
+            }
+        });
+    }
+
+    if (paginationNext) {
+        paginationNext.addEventListener('click', function() {
+            currentPage += 1;
+            updatePagination();
+        });
+    }
+
+    updatePagination();
 </script>
 </body>
 </html>
