@@ -265,7 +265,7 @@ if (count($active_slips) > 0) {
             <tbody id="activeSlipsBody">
                 <?php if (count($active_slips) > 0): ?>
                     <?php foreach ($active_slips as $slip): ?>
-                        <tr data-slip-id="<?= $slip['id'] ?>">
+                        <tr data-slip-id="<?= $slip['id'] ?>" data-slip-number="<?= htmlspecialchars($slip['slip_number']) ?>">
                             <td class="slip-number-col ps-4 fw-bold text-primary font-monospace small">
                                 <?= $slip['slip_number'] ?>
                                 <?php if (date('Y-m-d', strtotime($slip['issue_date'])) < date('Y-m-d')): ?>
@@ -508,10 +508,12 @@ if (count($active_slips) > 0) {
 
     // --- 3. QR CODE SCANNER CONTROLLER ---
     let html5QrcodeScanner = null;
+    let scanProcessed = false;
     const scanQrModalElement = document.getElementById('scanQrModal');
 
     if (scanQrModalElement) {
         scanQrModalElement.addEventListener('shown.bs.modal', function () {
+            scanProcessed = false;
             const feedback = document.getElementById('scannerFeedback');
             feedback.className = "badge bg-info text-white border p-2 mb-3";
             feedback.textContent = "Waiting for layout stability...";
@@ -586,6 +588,9 @@ if (count($active_slips) > 0) {
     }
 
     function onScanSuccess(decodedText, decodedResult) {
+        if (scanProcessed) return;
+        scanProcessed = true;
+
         console.log("QR Scan Matched Data:", decodedText);
 
         // Kill scanner ASAP
@@ -604,8 +609,8 @@ if (count($active_slips) > 0) {
 
         let targetRow = null;
         for (let row of tableRows) {
-            const slipCol = row.querySelector('.slip-number-col');
-            if (slipCol && slipCol.textContent.trim().toLowerCase() === decodedText.trim().toLowerCase()) {
+            const rowSlipNum = row.getAttribute('data-slip-number');
+            if (rowSlipNum && rowSlipNum.trim().toLowerCase() === decodedText.trim().toLowerCase()) {
                 targetRow = row;
                 break;
             }
