@@ -26,7 +26,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['process_slip'])) {
 
     $asset_ids = json_decode($_POST['asset_ids'], true);
 
-    if (empty($asset_ids)) {
+    // --- SUSPENSION CHECK ---
+    $stmt_check = $conn->prepare("
+        SELECT COUNT(*) as overdue_count 
+        FROM slip_items si
+        JOIN slips s ON si.slip_id = s.id
+        WHERE s.student_id = ? 
+          AND si.penalty_status = 'Pending' 
+          AND si.penalty_deadline IS NOT NULL 
+          AND si.penalty_deadline < CURDATE()
+    ");
+    $stmt_check->execute([$student_id]);
+    $overdue_check = $stmt_check->fetch();
+
+    if ($overdue_check['overdue_count'] > 0) {
+        $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'><i class='bi bi-exclamation-triangle-fill me-2 text-danger'></i><strong>Borrowing Blocked!</strong> Student <strong>$student_id</strong> has overdue unresolved penalties. They must resolve these before borrowing again.<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    } else if (empty($asset_ids)) {
         $message = "<div class='alert alert-danger alert-dismissible fade show shadow-sm text-dark bg-danger bg-opacity-25 border border-danger border-opacity-50'>You must add at least one item to the slip!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
     } else {
         try {

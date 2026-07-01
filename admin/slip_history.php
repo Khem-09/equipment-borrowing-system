@@ -251,7 +251,14 @@ if (count($history_slips) > 0) {
                                                 <div class="mt-2 small bg-light p-2 rounded border">
                                                     <strong>Penalty:</strong> <?= htmlspecialchars($item['penalty_type']) ?><br>
                                                     <?php if ($item['penalty_status'] === 'Pending'): ?>
-                                                        <span class="badge bg-warning text-dark border border-warning"><i class="bi bi-hourglass-split"></i> Pending</span>
+                                                        <?php 
+                                                        $is_overdue = !empty($item['penalty_deadline']) && strtotime($item['penalty_deadline']) < strtotime('today');
+                                                        ?>
+                                                        <?php if ($is_overdue): ?>
+                                                            <span class="badge bg-danger text-white border border-danger"><i class="bi bi-exclamation-triangle-fill"></i> Overdue (<?= date('M d', strtotime($item['penalty_deadline'])) ?>)</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-warning text-dark border border-warning"><i class="bi bi-hourglass-split"></i> Pending <?= !empty($item['penalty_deadline']) ? '(Due: '.date('M d', strtotime($item['penalty_deadline'])).')' : '' ?></span>
+                                                        <?php endif; ?>
                                                         <form method="POST" action="" class="d-inline">
                                                             <input type="hidden" name="action" value="resolve_penalty">
                                                             <input type="hidden" name="item_id" value="<?= $item['id'] ?>">
