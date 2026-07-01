@@ -27,10 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action']) && $_POST['a
 // --- FETCH HISTORY SLIPS ---
 // Fetch slips that are 'Returned' or 'Incomplete', along with the name of the Admin who processed it
 $query = "
-    SELECT s.*, u.full_name as admin_name 
-    FROM slips s 
-    LEFT JOIN users u ON s.processed_by = u.id 
-    WHERE s.status IN ('Returned', 'Incomplete') 
+    SELECT s.*, u.full_name as admin_name
+    FROM slips s
+    LEFT JOIN users u ON s.processed_by = u.id
+    WHERE s.status IN ('Returned', 'Incomplete')
     ORDER BY s.issue_date DESC
 ";
 $stmt = $conn->query($query);
@@ -41,9 +41,9 @@ $slip_items = [];
 if (count($history_slips) > 0) {
     $slip_ids = array_column($history_slips, 'id');
     $placeholders = str_repeat('?,', count($slip_ids) - 1) . '?';
-    
+
     $query_items = "
-        SELECT si.*, a.unique_asset_code, c.category_name 
+        SELECT si.*, a.unique_asset_code, c.category_name
         FROM slip_items si
         JOIN equipment_assets a ON si.asset_id = a.id
         JOIN equipment_categories c ON a.category_id = c.id
@@ -58,6 +58,10 @@ if (count($history_slips) > 0) {
         $slip_items[$item['slip_id']][] = $item;
     }
 }
+
+// Extract unique subjects for filtering
+$subjects = array_filter(array_unique(array_column($history_slips, 'subject_code')));
+sort($subjects);
 ?>
 
 <!DOCTYPE html>
@@ -76,7 +80,7 @@ if (count($history_slips) > 0) {
     <?php include '../includes/sidebar.php'; ?>
 
     <div class="main-content" id="mainContent">
-        
+
         <div class="topbar">
             <div class="d-flex align-items-center">
                 <button id="sidebarToggle" class="me-4"><i class="bi bi-list"></i></button>
@@ -93,13 +97,14 @@ if (count($history_slips) > 0) {
 
         <div class="content-area p-4 p-md-5">
             <?= $message ?>
-            
+
             <div class="bg-white rounded-4 shadow-sm p-4 mb-4">
-                <div class="row gx-3 gy-3 align-items-center">
-                    <div class="col-lg-8">
-                        <p class="text-muted mb-0">A permanent ledger of all completed and incomplete borrowing transactions.</p>
+                <div class="row g-3 align-items-center mb-3">
+                    <div class="col">
+                        <h5 class="fw-bold mb-1 text-dark">Borrowing History Ledger</h5>
+                        <p class="text-muted mb-0 small">A permanent ledger of all completed and incomplete borrowing transactions.</p>
                     </div>
-                    <div class="col-lg-auto d-flex justify-content-lg-end">
+                    <div class="col-auto">
                         <div class="d-flex align-items-center gap-2 bg-light rounded-pill px-3 py-2 shadow-sm">
                             <span class="small text-muted">Rows:</span>
                             <select id="paginationSize" class="form-select form-select-sm w-auto border-0 bg-transparent" style="min-width: 90px; max-width: 120px;">
@@ -109,6 +114,50 @@ if (count($history_slips) > 0) {
                                 <option value="50">50</option>
                             </select>
                         </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <!-- Search Bar -->
+                    <div class="col-lg-4 col-md-6">
+                        <label for="historySearch" class="form-label text-muted small fw-bold mb-1">Search</label>
+                        <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden border">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
+                            <input type="text" id="historySearch" class="form-control border-0 bg-light-time" placeholder="Search slip, student, instructor, or item...">
+                        </div>
+                    </div>
+
+                    <!-- Subject Filter -->
+                    <div class="col-lg-2 col-md-3">
+                        <label for="subjectFilter" class="form-label text-muted small fw-bold mb-1">Subject</label>
+                        <select id="subjectFilter" class="form-select form-select-sm shadow-sm rounded-pill border">
+                            <option value="">All Subjects</option>
+                            <?php foreach ($subjects as $sub): ?>
+                                <option value="<?= htmlspecialchars($sub) ?>"><?= htmlspecialchars($sub) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="col-lg-2 col-md-3">
+                        <label for="statusFilter" class="form-label text-muted small fw-bold mb-1">Status</label>
+                        <select id="statusFilter" class="form-select form-select-sm shadow-sm rounded-pill border">
+                            <option value="">All Statuses</option>
+                            <option value="Returned">Completed (Returned)</option>
+                            <option value="Incomplete">Incomplete (Overdue)</option>
+                        </select>
+                    </div>
+
+                    <!-- Date Range: Start -->
+                    <div class="col-lg-2 col-md-6">
+                        <label for="startDate" class="form-label text-muted small fw-bold mb-1">Start Date</label>
+                        <input type="date" id="startDate" class="form-control form-control-sm shadow-sm rounded-pill border">
+                    </div>
+
+                    <!-- Date Range: End -->
+                    <div class="col-lg-2 col-md-6">
+                        <label for="endDate" class="form-label text-muted small fw-bold mb-1">End Date</label>
+                        <input type="date" id="endDate" class="form-control form-control-sm shadow-sm rounded-pill border">
                     </div>
                 </div>
             </div>
@@ -129,7 +178,14 @@ if (count($history_slips) > 0) {
                         <tbody>
                             <?php if (count($history_slips) > 0): ?>
                                 <?php foreach ($history_slips as $row): ?>
-                                <tr>
+                                <tr data-slip-number="<?= htmlspecialchars($row['slip_number']) ?>"
+                                    data-student-id="<?= htmlspecialchars($row['student_id']) ?>"
+                                    data-student-name="<?= htmlspecialchars($row['student_name']) ?>"
+                                    data-instructor-name="<?= htmlspecialchars($row['instructor_name']) ?>"
+                                    data-subject-code="<?= htmlspecialchars($row['subject_code']) ?>"
+                                    data-status="<?= htmlspecialchars($row['status']) ?>"
+                                    data-issue-date="<?= date('Y-m-d', strtotime($row['issue_date'])) ?>"
+                                    data-items="<?= htmlspecialchars(implode(' ', array_column($slip_items[$row['id']] ?? [], 'unique_asset_code'))) ?>">
                                     <td class="ps-4 fw-bolder font-monospace text-primary">
                                         <?= htmlspecialchars($row['slip_number']) ?>
                                     </td>
@@ -166,6 +222,12 @@ if (count($history_slips) > 0) {
                             <?php else: ?>
                                 <tr><td colspan="6" class="text-center text-muted py-5">No borrowing history found.</td></tr>
                             <?php endif; ?>
+                            <tr id="noHistoryResultsRow" class="d-none">
+                                <td colspan="6" class="text-center text-muted py-5">
+                                    <i class="bi bi-search d-block mb-3 fs-3 text-secondary"></i>
+                                    No history records matching your criteria.
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3 p-3 border-top">
@@ -194,7 +256,7 @@ if (count($history_slips) > 0) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4 bg-light">
-                    
+
                     <div class="row mb-4">
                         <div class="col-md-6">
                             <h6 class="fw-bold text-muted small text-uppercase">Student Details</h6>
@@ -226,9 +288,9 @@ if (count($history_slips) > 0) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
+                                <?php
                                 $items = $slip_items[$slip['id']] ?? [];
-                                foreach ($items as $item): 
+                                foreach ($items as $item):
                                 ?>
                                     <tr>
                                         <td class="font-monospace fw-bold text-dark"><?= $item['unique_asset_code'] ?></td>
@@ -246,12 +308,12 @@ if (count($history_slips) > 0) {
                                             <?php else: ?>
                                                 <span class="badge bg-secondary"><?= $item['return_status'] ?></span>
                                             <?php endif; ?>
-                                            
+
                                             <?php if (!empty($item['penalty_type'])): ?>
                                                 <div class="mt-2 small bg-light p-2 rounded border">
                                                     <strong>Penalty:</strong> <?= htmlspecialchars($item['penalty_type']) ?><br>
                                                     <?php if ($item['penalty_status'] === 'Pending'): ?>
-                                                        <?php 
+                                                        <?php
                                                         $is_overdue = !empty($item['penalty_deadline']) && strtotime($item['penalty_deadline']) < strtotime('today');
                                                         ?>
                                                         <?php if ($is_overdue): ?>
@@ -289,40 +351,118 @@ if (count($history_slips) > 0) {
 
 <script src="../assets/bootstrap/js/bootstrap.bundle.min.js"></script>
 <script>
-    document.getElementById('sidebarToggle').addEventListener('click', function() { 
-        document.getElementById('sidebar').classList.toggle('collapsed'); 
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
     });
+
+    const searchInput = document.getElementById('historySearch');
+    const subjectFilter = document.getElementById('subjectFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const startDateInput = document.getElementById('startDate');
+    const endDateInput = document.getElementById('endDate');
+    const noResultsRow = document.getElementById('noHistoryResultsRow');
 
     const paginationSize = document.getElementById('paginationSize');
     const paginationPrev = document.getElementById('paginationPrev');
     const paginationNext = document.getElementById('paginationNext');
     const paginationInfo = document.getElementById('paginationInfo');
-    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => !row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+
+    const tableRows = Array.from(document.querySelectorAll('.table tbody tr')).filter(row => {
+        return row.id !== 'noHistoryResultsRow' && (!row.querySelector('td').colSpan || row.querySelector('td').colSpan === 1);
+    });
+
     let currentPage = 1;
     let rowsPerPage = Number(paginationSize?.value || 10);
 
-    function updatePagination() {
-        const totalRows = tableRows.length;
+    function filterAndPaginate() {
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const subject = subjectFilter ? subjectFilter.value.toLowerCase().trim() : '';
+        const status = statusFilter ? statusFilter.value.trim() : '';
+        const startDate = startDateInput ? startDateInput.value : '';
+        const endDate = endDateInput ? endDateInput.value : '';
+
+        // First, resolve row visibilities
+        const visibleRows = [];
+
+        tableRows.forEach(row => {
+            const slipNum = (row.getAttribute('data-slip-number') || '').toLowerCase();
+            const studentId = (row.getAttribute('data-student-id') || '').toLowerCase();
+            const studentName = (row.getAttribute('data-student-name') || '').toLowerCase();
+            const instructor = (row.getAttribute('data-instructor-name') || '').toLowerCase();
+            const subjectCode = (row.getAttribute('data-subject-code') || '').toLowerCase();
+            const rStatus = row.getAttribute('data-status') || '';
+            const issueDateVal = row.getAttribute('data-issue-date') || '';
+            const itemsVal = (row.getAttribute('data-items') || '').toLowerCase();
+
+            // Check if matches query
+            const matchesQuery = query === '' ||
+                                 slipNum.includes(query) ||
+                                 studentId.includes(query) ||
+                                 studentName.includes(query) ||
+                                 instructor.includes(query) ||
+                                 subjectCode.includes(query) ||
+                                 itemsVal.includes(query);
+
+            const matchesSubject = subject === '' || subjectCode === subject;
+            const matchesStatus = status === '' || rStatus === status;
+
+            let matchesDate = true;
+            if (startDate) {
+                matchesDate = matchesDate && (issueDateVal >= startDate);
+            }
+            if (endDate) {
+                matchesDate = matchesDate && (issueDateVal <= endDate);
+            }
+
+            if (matchesQuery && matchesSubject && matchesStatus && matchesDate) {
+                visibleRows.push(row);
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Toggle search fallback message
+        if (visibleRows.length === 0) {
+            if (noResultsRow) noResultsRow.classList.remove('d-none');
+        } else {
+            if (noResultsRow) noResultsRow.classList.add('d-none');
+        }
+
+        // Apply pagination on visible rows only
+        const totalRows = visibleRows.length;
         const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
         currentPage = Math.min(currentPage, totalPages);
 
-        tableRows.forEach((row, index) => {
+        visibleRows.forEach((row, index) => {
             const start = (currentPage - 1) * rowsPerPage;
-            row.style.display = index >= start && index < start + rowsPerPage ? '' : 'none';
+            row.style.display = (index >= start && index < start + rowsPerPage) ? '' : 'none';
         });
 
         const startEntry = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
         const endEntry = Math.min(totalRows, currentPage * rowsPerPage);
-        paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
-        paginationPrev.disabled = currentPage === 1;
-        paginationNext.disabled = currentPage === totalPages;
+
+        if (paginationInfo) {
+            paginationInfo.textContent = `Showing ${startEntry} to ${endEntry} of ${totalRows} entries`;
+        }
+        if (paginationPrev) {
+            paginationPrev.disabled = (currentPage === 1);
+        }
+        if (paginationNext) {
+            paginationNext.disabled = (currentPage === totalPages);
+        }
     }
+
+    if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
+    if (subjectFilter) subjectFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
+    if (statusFilter) statusFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
+    if (startDateInput) startDateInput.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
+    if (endDateInput) endDateInput.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
 
     if (paginationSize) {
         paginationSize.addEventListener('change', function() {
             rowsPerPage = Number(this.value);
             currentPage = 1;
-            updatePagination();
+            filterAndPaginate();
         });
     }
 
@@ -330,7 +470,7 @@ if (count($history_slips) > 0) {
         paginationPrev.addEventListener('click', function() {
             if (currentPage > 1) {
                 currentPage -= 1;
-                updatePagination();
+                filterAndPaginate();
             }
         });
     }
@@ -338,11 +478,11 @@ if (count($history_slips) > 0) {
     if (paginationNext) {
         paginationNext.addEventListener('click', function() {
             currentPage += 1;
-            updatePagination();
+            filterAndPaginate();
         });
     }
 
-    updatePagination();
+    filterAndPaginate();
 </script>
 </body>
 </html>
